@@ -51,6 +51,11 @@ class Utilisateur extends Authenticatable
         return '';
     }
 
+    public function estAdministrateur(): bool
+    {
+        return $this->role?->libelle === 'Administrateur';
+    }
+
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class, 'code_service', 'code_service');

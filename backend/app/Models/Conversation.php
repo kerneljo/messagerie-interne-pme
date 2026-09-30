@@ -38,4 +38,9 @@ class Conversation extends Model
     {
         return $this->hasMany(Message::class, 'reference_conversation', 'reference_conversation');
     }
+
+    public function aParticipant(int $matricule): bool
+    {
+        return $this->participants()->wherePivot('matricule', $matricule)->exists();
+    }
 }

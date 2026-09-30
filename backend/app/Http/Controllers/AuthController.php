@@ -21,6 +21,7 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
         ]);
+        $data['email'] = Str::lower($data['email']);
 
         // Limitation : 5 echecs par couple (email + IP) puis blocage de 5 minutes
         $cle = Str::lower($data['email']) . '|' . $request->ip();
