@@ -6,7 +6,7 @@ use App\Models\Utilisateur;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/** Annuaire : liste des collegues (comptes actifs) pour creer une conversation. */
+/** Annuaire : liste des collegues (comptes actifs) pour choisir des destinataires. */
 class AnnuaireController extends Controller
 {
     public function index(Request $request): JsonResponse
@@ -19,10 +19,13 @@ class AnnuaireController extends Controller
             ->orderBy('nom')
             ->orderBy('prenom');
 
+        // Recherche par nom, prenom ou nom de service (ex. « Informatique » pour ecrire a tout un service)
         if ($request->filled('q')) {
             $motif = '%' . addcslashes((string) $request->query('q'), '%_\\') . '%';
             $requete->where(function ($w) use ($motif) {
-                $w->where('nom', 'ilike', $motif)->orWhere('prenom', 'ilike', $motif);
+                $w->where('nom', 'ilike', $motif)
+                    ->orWhere('prenom', 'ilike', $motif)
+                    ->orWhereHas('service', fn ($s) => $s->where('nom_service', 'ilike', $motif));
             });
         }
 

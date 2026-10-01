@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+@layer base {
+  html, body, #root { height: 100%; }
+  /* Tailwind v4 laisse le curseur par defaut sur les boutons */
+  button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+}

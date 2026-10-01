@@ -7,6 +7,22 @@ export function AuthProvider({ children }) {
   const [utilisateur, setUtilisateur] = useState(null)
   const [chargement, setChargement] = useState(true)
 
+  // Session expiree ou compte desactive : retour a la page de connexion
+  useEffect(() => {
+    const id = api.interceptors.response.use(
+      (reponse) => reponse,
+      (erreur) => {
+        const statut = erreur.response?.status
+        const message = erreur.response?.data?.message
+        if (statut === 401 || (statut === 403 && message === 'Compte desactive.')) {
+          setUtilisateur(null)
+        }
+        return Promise.reject(erreur)
+      }
+    )
+    return () => api.interceptors.response.eject(id)
+  }, [])
+
   // Au chargement : la session existe-t-elle deja ?
   useEffect(() => {
     api
@@ -23,8 +39,11 @@ export function AuthProvider({ children }) {
   }
 
   async function deconnexion() {
-    await api.post('/api/logout')
-    setUtilisateur(null)
+    try {
+      await api.post('/api/logout')
+    } finally {
+      setUtilisateur(null)
+    }
   }
 
   return (

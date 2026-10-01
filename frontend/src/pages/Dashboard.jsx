@@ -1,0 +1,193 @@
+import { useCallback, useState } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  Building2, FileText, Inbox, MessagesSquare, ShieldAlert, SendHorizontal, SquarePen, UserCheck, UserX, LogIn,
+} from 'lucide-react'
+import api from '../api'
+import { useAuth } from '../AuthContext'
+import { useMessagerie } from '../MessagerieContext'
+import usePolling from '../usePolling'
+import { heureCourte, messageErreur } from '../utils'
+import { Avatar, Carte, Chargement } from '../components/ui'
+
+const TEINTES = {
+  bleu: 'bg-blue-50 text-blue-600',
+  vert: 'bg-emerald-50 text-emerald-600',
+  orange: 'bg-amber-50 text-amber-600',
+  violet: 'bg-violet-50 text-violet-600',
+  rouge: 'bg-red-50 text-red-600',
+  gris: 'bg-slate-100 text-slate-600',
+}
+
+function Stat({ titre, valeur, icone: Icone, teinte = 'bleu', to }) {
+  const contenu = (
+    <Carte className="flex items-center gap-4 p-5 transition-shadow hover:shadow-md">
+      <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${TEINTES[teinte]}`}>
+        <Icone className="size-6" />
+      </span>
+      <div>
+        <p className="text-2xl font-bold text-slate-800">{valeur}</p>
+        <p className="text-sm text-slate-500">{titre}</p>
+      </div>
+    </Carte>
+  )
+  return to ? <Link to={to}>{contenu}</Link> : contenu
+}
+
+function Activite({ jours }) {
+  const max = Math.max(1, ...jours.flatMap((j) => [j.envoyes, j.recus]))
+  return (
+    <Carte className="p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-semibold text-slate-800">Activité des 7 derniers jours</h2>
+        <div className="flex items-center gap-4 text-xs text-slate-500">
+          <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-blue-600" />Envoyés</span>
+          <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-slate-300" />Reçus</span>
+        </div>
+      </div>
+      <div className="grid h-44 grid-cols-7 gap-2">
+        {jours.map((j) => (
+          <div key={j.jour} className="flex min-w-0 flex-col items-center gap-2">
+            <div className="flex w-full flex-1 items-end justify-center gap-1">
+              <div
+                className="w-full max-w-5 rounded-t bg-blue-600"
+                style={{ height: `${(j.envoyes / max) * 100}%`, minHeight: j.envoyes ? 4 : 0 }}
+                title={`${j.envoyes} envoyé(s)`}
+              />
+              <div
+                className="w-full max-w-5 rounded-t bg-slate-300"
+                style={{ height: `${(j.recus / max) * 100}%`, minHeight: j.recus ? 4 : 0 }}
+                title={`${j.recus} reçu(s)`}
+              />
+            </div>
+            <span className="text-xs capitalize text-slate-500">
+              {new Date(`${j.jour}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short' })}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Carte>
+  )
+}
+
+export default function Dashboard() {
+  const { utilisateur } = useAuth()
+  const { conversationsNonLues } = useMessagerie()
+  const [donnees, setDonnees] = useState(null)
+  const [erreur, setErreur] = useState('')
+
+  const charger = useCallback(async () => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+      const { data } = await api.get('/api/dashboard', { params: { tz } })
+      setDonnees(data)
+      setErreur('')
+    } catch (e) {
+      setErreur(messageErreur(e))
+    }
+  }, [])
+
+  usePolling(charger, 30000)
+
+  const heure = new Date().getHours()
+  const salutation = heure < 18 ? 'Bonjour' : 'Bonsoir'
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">{salutation} {utilisateur.prenom} 👋</h2>
+          <p className="text-sm text-slate-500">Voici un aperçu de votre messagerie.</p>
+        </div>
+        <Link
+          to="/envoyer"
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+        >
+          <SquarePen className="size-4" /> Envoyer un message
+        </Link>
+      </div>
+
+      {erreur && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{erreur}</p>}
+      {!donnees && !erreur && <Chargement />}
+
+      {donnees && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Stat titre="Messages non lus" valeur={donnees.non_lus} icone={Inbox} teinte="bleu" to="/recus" />
+            <Stat titre="Conversations" valeur={donnees.conversations.total} icone={MessagesSquare} teinte="violet" to="/conversations" />
+            <Stat titre="Envoyés (7 jours)" valeur={donnees.envoyes_7j} icone={SendHorizontal} teinte="vert" to="/envoyes" />
+            <Stat titre="Pièces jointes (7 jours)" valeur={donnees.fichiers_7j} icone={FileText} teinte="orange" />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <Activite jours={donnees.activite} />
+            </div>
+
+            <Carte className="flex flex-col">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <h2 className="font-semibold text-slate-800">À lire</h2>
+                <Link to="/recus" className="text-sm font-medium text-blue-600 hover:underline">Tout voir</Link>
+              </div>
+              {conversationsNonLues.length === 0 ? (
+                <p className="p-8 text-center text-sm text-slate-500">Tout est lu. 🎉</p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {conversationsNonLues.slice(0, 5).map((c) => {
+                    const autre = c.participants.find((p) => p.matricule !== utilisateur.matricule)
+                    return (
+                      <li key={c.reference_conversation}>
+                        <Link to={`/conversations/${c.reference_conversation}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50">
+                          <Avatar prenom={c.type === 'DIRECT' ? autre?.prenom : c.titre} nom={c.type === 'DIRECT' ? autre?.nom : ''} taille="sm" />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex justify-between gap-2">
+                              <span className="truncate text-sm font-semibold text-slate-800">{c.titre}</span>
+                              <span className="shrink-0 text-xs text-slate-400">{heureCourte(c.derniere_activite)}</span>
+                            </span>
+                            <span className="block truncate text-sm text-slate-500">{c.dernier_message ?? 'Pièce jointe'}</span>
+                          </span>
+                          <span className="flex min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-semibold leading-5 text-white">
+                            {c.non_lus}
+                          </span>
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </Carte>
+          </div>
+
+          <Carte className="p-5">
+            <h2 className="mb-3 font-semibold text-slate-800">Répartition de vos conversations</h2>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                ['Messages directs', donnees.conversations.direct],
+                ['Groupes', donnees.conversations.groupe],
+                ['Diffusions', donnees.conversations.diffusion],
+              ].map(([nom, n]) => (
+                <div key={nom} className="rounded-lg bg-slate-50 px-4 py-3">
+                  <p className="text-xl font-bold text-slate-800">{n}</p>
+                  <p className="text-sm text-slate-500">{nom}</p>
+                </div>
+              ))}
+            </div>
+          </Carte>
+
+          {donnees.admin && (
+            <section aria-label="Administration">
+              <h2 className="mb-3 font-semibold text-slate-800">Vue d'ensemble de l'entreprise</h2>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                <Stat titre="Comptes actifs" valeur={donnees.admin.utilisateurs_actifs} icone={UserCheck} teinte="vert" />
+                <Stat titre="Comptes désactivés" valeur={donnees.admin.utilisateurs_desactives} icone={UserX} teinte="gris" />
+                <Stat titre="Services" valeur={donnees.admin.services} icone={Building2} teinte="violet" />
+                <Stat titre="Connexions (24 h)" valeur={donnees.admin.connexions_24h} icone={LogIn} teinte="bleu" />
+                <Stat titre="Échecs de connexion (24 h)" valeur={donnees.admin.echecs_connexion_24h} icone={ShieldAlert} teinte="rouge" />
+              </div>
+            </section>
+          )}
+        </>
+      )}
+    </div>
+  )
+}

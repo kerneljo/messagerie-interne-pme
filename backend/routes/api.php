@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\AnnuaireController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BoiteController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\FichierController;
 use App\Http\Controllers\MessageController;
@@ -16,6 +18,11 @@ Route::middleware(['auth:sanctum', CompteActif::class])->group(function () {
     // Session
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    // Tableau de bord et boites de messages
+    Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/messages/recus', [BoiteController::class, 'recus']);
+    Route::get('/messages/envoyes', [BoiteController::class, 'envoyes']);
 
     // Annuaire (pour choisir des destinataires)
     Route::get('/annuaire', [AnnuaireController::class, 'index']);
