@@ -93,7 +93,7 @@ export default function Dashboard() {
   const salutation = heure < 18 ? 'Bonjour' : 'Bonsoir'
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
+    <div className="space-y-6 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">{salutation} {utilisateur.prenom} 👋</h2>

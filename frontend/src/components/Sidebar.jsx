@@ -10,6 +10,7 @@ import {
   X,
   PanelLeftClose,
   PanelLeftOpen,
+  ShieldCheck,
 } from 'lucide-react'
 import { useAuth } from '../AuthContext'
 import { useMessagerie } from '../MessagerieContext'
@@ -28,13 +29,12 @@ function Lien({ to, icone: Icone, libelle, end, badge, onClick, replie }) {
           replie ? 'justify-center px-2' : 'px-3'
         } ${
           isActive
-            ? 'bg-slate-800 text-white'
+            ? 'bg-slate-800 text-white before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-1 before:rounded-r-full before:bg-indigo-500'
             : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
         }`
       }
     >
       <Icone className="size-5 shrink-0" />
-
       {!replie && (
         <>
           <span className="flex-1">{libelle}</span>
@@ -45,7 +45,6 @@ function Lien({ to, icone: Icone, libelle, end, badge, onClick, replie }) {
           )}
         </>
       )}
-
       {replie && badge > 0 && (
         <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-blue-500 ring-2 ring-slate-900" />
       )}
@@ -59,6 +58,8 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
 
   const [confirmationOuverte, setConfirmationOuverte] = useState(false)
   const [deconnexionEnCours, setDeconnexionEnCours] = useState(false)
+
+  const estAdmin = utilisateur?.role?.libelle === 'Administrateur'
 
   async function confirmerDeconnexion() {
     setDeconnexionEnCours(true)
@@ -74,7 +75,6 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
 
   return (
     <>
-      {/* Overlay mobile */}
       {ouvert && (
         <div
           className="fixed inset-0 z-30 bg-slate-900/50 lg:hidden"
@@ -89,68 +89,39 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
         } ${ouvert ? 'translate-x-0' : '-translate-x-full'}`}
         aria-label="Navigation principale"
       >
-       {/* ===== En-tête ===== */}
-<div
-  className={`flex h-16 items-center ${
-    replie ? 'justify-center px-0' : 'gap-3 px-5'
-  }`}
->
-  {/* Logo + titre : masqués quand replié */}
-  {!replie && (
-    <>
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
-        <MessageSquareText className="size-5" />
-      </span>
-      <span className="flex-1 font-semibold text-white">Messagerie interne</span>
-    </>
-  )}
+        <div className={`flex h-16 items-center ${replie ? 'justify-center px-0' : 'gap-3 px-5'}`}>
+          {!replie && (
+            <>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
+                <MessageSquareText className="size-5" />
+              </span>
+              <span className="flex-1 font-semibold text-white">Messagerie interne</span>
+            </>
+          )}
 
-  {/* Bouton fermer (mobile uniquement) */}
-  <button
-    className="rounded-lg p-1 text-slate-400 transition-colors hover:text-white lg:hidden"
-    onClick={onFermer}
-    aria-label="Fermer le menu"
-  >
-    <X className="size-5" />
-  </button>
+          <button
+            className="rounded-lg p-1 text-slate-400 transition-colors hover:text-white lg:hidden"
+            onClick={onFermer}
+            aria-label="Fermer le menu"
+          >
+            <X className="size-5" />
+          </button>
 
-  {/* Bouton de repli (desktop uniquement) — discret, icône seule */}
-  <button
-    type="button"
-    onClick={onBasculerRepli}
-    className="hidden rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-white lg:flex"
-    aria-label={replie ? 'Déplier la sidebar' : 'Replier la sidebar'}
-    title={replie ? 'Déplier' : 'Replier'}
-  >
-    <IconeRepli className="size-5" />
-  </button>
-</div>
+          <button
+            type="button"
+            onClick={onBasculerRepli}
+            className="hidden rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-white lg:flex"
+            aria-label={replie ? 'Déplier la sidebar' : 'Replier la sidebar'}
+            title={replie ? 'Déplier' : 'Replier'}
+          >
+            <IconeRepli className="size-5" />
+          </button>
+        </div>
 
-        {/* ===== Navigation ===== */}
         <nav className={`flex-1 space-y-1 overflow-y-auto py-3 ${replie ? 'px-2' : 'px-3'}`}>
-          <Lien
-            to="/"
-            end
-            icone={LayoutDashboard}
-            libelle="Dashboard"
-            onClick={onFermer}
-            replie={replie}
-          />
-          <Lien
-            to="/recus"
-            icone={Inbox}
-            libelle="Boîte de réception"
-            badge={nonLus}
-            onClick={onFermer}
-            replie={replie}
-          />
-          <Lien
-            to="/envoyes"
-            icone={SendHorizontal}
-            libelle="Envoyés"
-            onClick={onFermer}
-            replie={replie}
-          />
+          <Lien to="/" end icone={LayoutDashboard} libelle="Dashboard" onClick={onFermer} replie={replie} />
+          <Lien to="/recus" icone={Inbox} libelle="Boîte de réception" badge={nonLus} onClick={onFermer} replie={replie} />
+          <Lien to="/envoyes" icone={SendHorizontal} libelle="Envoyés" onClick={onFermer} replie={replie} />
           <Lien
             to="/conversations"
             icone={MessagesSquare}
@@ -159,15 +130,32 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
             onClick={onFermer}
             replie={replie}
           />
+
+          {estAdmin && (
+            <>
+              {!replie && (
+                <p className="px-3 pt-4 pb-2 text-[10px] font-bold tracking-[0.15em] text-slate-500 uppercase">
+                  Système
+                </p>
+              )}
+              {replie && <div className="my-2 border-t border-slate-800" />}
+              <Lien
+                to="/admin"
+                icone={ShieldCheck}
+                libelle="Administration"
+                onClick={onFermer}
+                replie={replie}
+              />
+            </>
+          )}
         </nav>
 
-        {/* ===== Pied : utilisateur + déconnexion ===== */}
         <div className="border-t border-slate-800 p-3">
           {replie ? (
             <div className="flex flex-col items-center gap-2">
-              <div title={`${utilisateur.prenom} ${utilisateur.nom}`}>
-                <Avatar prenom={utilisateur.prenom} nom={utilisateur.nom} taille="sm" />
-              </div>
+             <NavLink to="/profil" onClick={onFermer} title="Mon profil">
+  <Avatar prenom={utilisateur.prenom} nom={utilisateur.nom} taille="sm" photoUrl={utilisateur.photo_url} />
+</NavLink>
               <button
                 onClick={() => setConfirmationOuverte(true)}
                 className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-white"
@@ -179,15 +167,24 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-                <Avatar prenom={utilisateur.prenom} nom={utilisateur.nom} taille="sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white">
-                    {utilisateur.prenom} {utilisateur.nom}
-                  </p>
-                  <p className="truncate text-xs text-slate-400">{utilisateur.role.libelle}</p>
-                </div>
-              </div>
+             <NavLink
+  to="/profil"
+  onClick={onFermer}
+  title={replie ? 'Mon profil' : undefined}
+  className={({ isActive }) =>
+    `flex items-center gap-3 rounded-lg px-2 py-2 transition-colors ${
+      isActive ? 'bg-slate-800' : 'hover:bg-slate-800/60'
+    }`
+  }
+>
+  <Avatar prenom={utilisateur.prenom} nom={utilisateur.nom} taille="sm" photoUrl={utilisateur.photo_url} />
+  <div className="min-w-0 flex-1">
+    <p className="truncate text-sm font-medium text-white">
+      {utilisateur.prenom} {utilisateur.nom}
+    </p>
+    <p className="truncate text-xs text-slate-400">{utilisateur.role.libelle}</p>
+  </div>
+</NavLink>
               <button
                 onClick={() => setConfirmationOuverte(true)}
                 className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-800/60 hover:text-white"
@@ -200,7 +197,6 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
         </div>
       </aside>
 
-      {/* ===== Modal de confirmation ===== */}
       <ConfirmationModal
         ouvert={confirmationOuverte}
         onFermer={() => setConfirmationOuverte(false)}

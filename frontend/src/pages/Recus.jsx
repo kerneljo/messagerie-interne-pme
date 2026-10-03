@@ -44,7 +44,7 @@ export default function Recus() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-6">
+    <div className="space-y-4 p-4 md:p-6">
       <div className="flex flex-wrap items-center gap-3">
         <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
           {[['tous', 'Tous'], ['non_lus', 'Non lus']].map(([valeur, nom]) => (

@@ -1,106 +1,150 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, CheckCheck, Paperclip, Search, SendHorizontal } from 'lucide-react'
+import { Search, SendHorizontal, Users, Loader2, Paperclip } from 'lucide-react'
 import api from '../api'
-import usePolling from '../usePolling'
-import { heureCourte, messageErreur } from '../utils'
-import { Avatar, Carte, Chargement, EtatVide, Pagination } from '../components/ui'
+import { Avatar } from '../components/ui'
 
 export default function Envoyes() {
   const navigate = useNavigate()
+  const [groupes, setGroupes] = useState([])
+  const [chargement, setChargement] = useState(true)
   const [recherche, setRecherche] = useState('')
-  const [q, setQ] = useState('')
-  const [page, setPage] = useState(1)
-  const [resultat, setResultat] = useState(null)
-  const [erreur, setErreur] = useState('')
 
   useEffect(() => {
-    const minuteur = setTimeout(() => {
-      setQ(recherche.trim())
-      setPage(1)
-    }, 300)
-    return () => clearTimeout(minuteur)
-  }, [recherche])
+    setChargement(true)
+    api.get('/api/messages/envoyes')
+      .then((r) => setGroupes(r.data.data ?? r.data))
+      .catch(() => setGroupes([]))
+      .finally(() => setChargement(false))
+  }, [])
 
-  const charger = useCallback(async () => {
-    try {
-      const { data } = await api.get('/api/messages/envoyes', { params: { page, q: q || undefined } })
-      setResultat(data)
-      setErreur('')
-    } catch (e) {
-      setErreur(messageErreur(e))
-    }
-  }, [page, q])
-
-  usePolling(charger, 15000)
+  const visibles = groupes.filter((g) => {
+    if (!recherche) return true
+    const q = recherche.toLowerCase()
+    return (g.titre || '').toLowerCase().includes(q)
+  })
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-6">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Rechercher dans les messages envoyés..."
-          aria-label="Rechercher dans les messages envoyés"
-          className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus-visible:outline-2 focus-visible:outline-blue-600"
-        />
+    <div className="w-full px-6 py-6 md:px-8">
+
+      {/* Recherche */}
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Rechercher dans les messages envoyés…"
+            className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm
+                       placeholder-slate-400 shadow-sm
+                       focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-400 transition"
+          />
+        </div>
       </div>
 
-      {erreur && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{erreur}</p>}
-
-      <Carte>
-        {!resultat && !erreur && <Chargement />}
-        {resultat && resultat.data.length === 0 && (
-          <EtatVide icone={SendHorizontal} titre="Aucun message envoyé">
-            Les messages que vous envoyez apparaîtront ici.
-          </EtatVide>
-        )}
-        {resultat && resultat.data.length > 0 && (
+      {/* Liste */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        {chargement ? (
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
+            <Loader2 className="size-4 animate-spin" />
+            Chargement…
+          </div>
+        ) : visibles.length === 0 ? (
+          <div className="py-16 text-center">
+            <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-4">
+              <SendHorizontal className="size-6" />
+            </span>
+            <p className="text-sm font-medium text-slate-700">
+              {recherche ? 'Aucun résultat' : 'Aucun message envoyé'}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {recherche
+                ? 'Essayez avec un autre nom.'
+                : 'Vos messages envoyés apparaîtront ici.'}
+            </p>
+          </div>
+        ) : (
           <ul className="divide-y divide-slate-100">
-            {resultat.data.map((m) => {
-              const tousLus = m.destinataires > 0 && m.lus >= m.destinataires
-              return (
-                <li key={m.reference_message}>
-                  <button
-                    onClick={() => navigate(`/conversations/${m.reference_conversation}`)}
-                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-slate-50"
-                  >
-                    <Avatar prenom={m.titre} nom="" />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center justify-between gap-3">
-                        <span className="truncate text-sm font-semibold text-slate-800">
-                          À : {m.titre}
-                          {m.conversation.type !== 'DIRECT' && (
-                            <span className="ml-2 font-normal text-slate-500">· {m.destinataires} destinataires</span>
-                          )}
-                        </span>
-                        <span className="shrink-0 text-xs text-slate-400">{heureCourte(m.date_envoi)}</span>
+            {visibles.map((g) => (
+              <li key={g.cle}>
+                <button
+                  onClick={() => navigate(`/conversations/${g.reference_conversation}`)}
+                  className="group w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-slate-50 transition-colors"
+                >
+                  {/* Avatar */}
+                  {g.type === 'DIRECT' && g.destinataire ? (
+                    <Avatar
+                      prenom={g.destinataire.prenom}
+                      nom={g.destinataire.nom}
+                      taille="md"
+                      photoUrl={g.destinataire.photo_url}
+                    />
+                  ) : (
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-white">
+                      <Users className="size-5" />
+                    </div>
+                  )}
+
+                  {/* Contenu principal */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h3 className="truncate text-sm font-semibold text-slate-900">
+                        À : {g.titre}
+                      </h3>
+                      <span className="shrink-0 text-xs text-slate-400">
+                        {formaterDate(g.derniere_date)}
                       </span>
-                      <span className="mt-0.5 flex items-center gap-2 text-sm text-slate-500">
-                        <span className="truncate">{m.apercu}</span>
-                        {m.nb_fichiers > 0 && (
-                          <span className="flex shrink-0 items-center gap-1 text-xs text-slate-400">
-                            <Paperclip className="size-3.5" />{m.nb_fichiers}
-                          </span>
-                        )}
+                    </div>
+                    <p className="mt-0.5 truncate text-sm text-slate-500">
+                      {g.dernier_apercu || 'Pièce jointe'}
+                    </p>
+                  </div>
+
+                  {/* Compteurs à droite */}
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                      {g.nb_messages} message{g.nb_messages > 1 ? 's' : ''}
+                    </span>
+                    {g.nb_fichiers > 0 && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-slate-400">
+                        <Paperclip className="size-2.5" />
+                        {g.nb_fichiers}
                       </span>
-                    </span>
-                    <span className={`flex shrink-0 items-center gap-1 text-xs ${tousLus ? 'text-blue-600' : 'text-slate-400'}`}>
-                      {m.lus > 0 ? <CheckCheck className="size-4" /> : <Check className="size-4" />}
-                      {m.lus > 0 ? `Lu ${m.lus}/${m.destinataires}` : 'Envoyé'}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
+                    )}
+                    {g.type === 'GROUPE' && (
+                      <span className="text-[10px] text-slate-400">
+                        {g.participants_count} participants
+                      </span>
+                    )}
+                  </div>
+                </button>
+              </li>
+            ))}
           </ul>
         )}
-        {resultat && (
-          <Pagination page={resultat.current_page} derniere={resultat.last_page} total={resultat.total} onChange={setPage} />
-        )}
-      </Carte>
+      </div>
     </div>
   )
+}
+
+/* ============================================================
+   Formatage de date intelligent (style Gmail)
+   ============================================================ */
+function formaterDate(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d)) return ''
+
+  const maintenant = new Date()
+  const aujourdHui = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate())
+  const dateMsg = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const diffJours = Math.floor((aujourdHui - dateMsg) / 86400000)
+
+  const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+
+  if (diffJours === 0) return heure
+  if (diffJours === 1) return 'Hier'
+  if (diffJours < 7) return ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][d.getDay()]
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
 }

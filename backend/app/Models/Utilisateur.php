@@ -14,42 +14,37 @@ class Utilisateur extends Authenticatable
 
     protected $table = 'utilisateur';
     protected $primaryKey = 'matricule';
-    public $timestamps = false; // date_creation est remplie par la base (useCurrent)
+    public $timestamps = false;
 
     protected $fillable = [
-        'nom', 'prenom', 'email', 'mot_de_passe_hash', 'poste',
+        'nom', 'prenom', 'email', 'photo_profil', 'mot_de_passe_hash', 'code_poste',
         'statut_compte', 'derniere_connexion', 'code_service', 'code_role',
     ];
 
     protected $hidden = ['mot_de_passe_hash'];
 
+    protected $appends = ['photo_url'];
+
+    public function getPhotoUrlAttribute(): ?string
+    {
+        return $this->photo_profil
+            ? asset('storage/' . $this->photo_profil)
+            : null;
+    }
+
+
     protected function casts(): array
     {
         return [
-            // 'hashed' : Laravel hache automatiquement la valeur a l'affectation
             'mot_de_passe_hash' => 'hashed',
             'derniere_connexion' => 'datetime',
             'date_creation' => 'datetime',
         ];
     }
 
-    /** Colonne utilisee par Laravel pour verifier le mot de passe. */
-    public function getAuthPassword(): string
-    {
-        return $this->mot_de_passe_hash;
-    }
-
-    /** Nom de la colonne du mot de passe (utile si Laravel doit re-hacher le mot de passe). */
-    public function getAuthPasswordName(): string
-    {
-        return 'mot_de_passe_hash';
-    }
-
-    /** Pas de colonne remember_token dans notre MCD : on desactive la fonction. */
-    public function getRememberTokenName(): string
-    {
-        return '';
-    }
+    public function getAuthPassword(): string { return $this->mot_de_passe_hash; }
+    public function getAuthPasswordName(): string { return 'mot_de_passe_hash'; }
+    public function getRememberTokenName(): string { return ''; }
 
     public function estAdministrateur(): bool
     {
@@ -66,35 +61,31 @@ class Utilisateur extends Authenticatable
         return $this->belongsTo(Role::class, 'code_role', 'code_role');
     }
 
-    /** PARTICIPER : conversations dont l'utilisateur est membre. */
-    public function conversations(): BelongsToMany
+    public function poste(): BelongsTo
     {
-        return $this->belongsToMany(
-            Conversation::class, 'participant', 'matricule', 'reference_conversation'
-        )->withPivot('date_ajout');
+        return $this->belongsTo(Poste::class, 'code_poste', 'code_poste');
     }
 
-    /** CREER */
+    public function conversations(): BelongsToMany
+    {
+        return $this->belongsToMany(Conversation::class, 'participant', 'matricule', 'reference_conversation')->withPivot('date_ajout');
+    }
+
     public function conversationsCreees(): HasMany
     {
         return $this->hasMany(Conversation::class, 'matricule_createur', 'matricule');
     }
 
-    /** ENVOYER */
     public function messagesEnvoyes(): HasMany
     {
         return $this->hasMany(Message::class, 'matricule_expediteur', 'matricule');
     }
 
-    /** LIRE : messages lus par l'utilisateur. */
     public function messagesLus(): BelongsToMany
     {
-        return $this->belongsToMany(
-            Message::class, 'lecture_message', 'matricule', 'reference_message'
-        )->withPivot('date_lecture');
+        return $this->belongsToMany(Message::class, 'lecture_message', 'matricule', 'reference_message')->withPivot('date_lecture');
     }
 
-    /** TRACER */
     public function audits(): HasMany
     {
         return $this->hasMany(JournalAudit::class, 'matricule', 'matricule');

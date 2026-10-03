@@ -1,13 +1,22 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { couleurAvatar, initiales } from '../utils'
 
-const TAILLES_AVATAR = { sm: 'size-8 text-xs', md: 'size-10 text-sm', lg: 'size-12 text-base' }
+const TAILLES_AVATAR = { sm: 'size-8 text-xs', md: 'size-10 text-sm', lg: 'size-12 text-base', xl: 'size-20 text-xl' }
 
-export function Avatar({ prenom, nom, taille = 'md' }) {
+export function Avatar({ prenom, nom, taille = 'md', photoUrl, className = '' }) {
+  if (photoUrl) {
+    return (
+      <img
+        src={photoUrl}
+        alt={`${prenom} ${nom}`}
+        className={`inline-flex shrink-0 items-center justify-center rounded-full object-cover ${TAILLES_AVATAR[taille]} ${className}`}
+      />
+    )
+  }
   return (
     <span
       aria-hidden="true"
-      className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${TAILLES_AVATAR[taille]} ${couleurAvatar(`${prenom}${nom}`)}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${TAILLES_AVATAR[taille]} ${couleurAvatar(`${prenom}${nom}`)} ${className}`}
     >
       {initiales(prenom, nom)}
     </span>

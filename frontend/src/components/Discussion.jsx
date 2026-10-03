@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Check, CheckCheck, Paperclip, Pencil, Reply, SendHorizontal, Trash2, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../AuthContext'
 import usePolling from '../usePolling'
@@ -237,19 +238,39 @@ export default function Discussion({ conversation, onLu, onRetour }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
-        <button className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 md:hidden" onClick={onRetour} aria-label="Retour à la liste">
-          <ArrowLeft className="size-5" />
-        </button>
-        <Avatar
-          prenom={conversation.type === 'DIRECT' ? autre?.prenom : conversation.titre}
-          nom={conversation.type === 'DIRECT' ? autre?.nom : ''}
-        />
-        <div className="min-w-0">
-          <h2 className="truncate font-semibold text-slate-800">{conversation.titre}</h2>
-          {sousTitre && <p className="truncate text-xs text-slate-500">{sousTitre}</p>}
-        </div>
-      </header>
+     		<header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
+  <button className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 md:hidden" onClick={onRetour} aria-label="Retour à la liste">
+    <ArrowLeft className="size-5" />
+  </button>
+
+  {conversation.type === 'DIRECT' && autre?.matricule ? (
+    <Link
+      to={`/utilisateurs/${autre.matricule}`}
+      className="flex items-center gap-3 min-w-0 flex-1 rounded-lg -mx-2 px-2 py-1 hover:bg-slate-50 transition"
+    >
+      <Avatar
+        prenom={autre.prenom}
+        nom={autre.nom}
+        photoUrl={autre.photo_url}
+      />
+      <div className="min-w-0">
+        <h2 className="truncate font-semibold text-slate-800">{conversation.titre}</h2>
+        {sousTitre && <p className="truncate text-xs text-slate-500">{sousTitre}</p>}
+      </div>
+    </Link>
+  ) : (
+    <>
+      <Avatar
+        prenom={conversation.titre}
+        nom=""
+      />
+      <div className="min-w-0">
+        <h2 className="truncate font-semibold text-slate-800">{conversation.titre}</h2>
+        {sousTitre && <p className="truncate text-xs text-slate-500">{sousTitre}</p>}
+      </div>
+    </>
+  )}
+</header>
 
       <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto bg-slate-50 p-4" ref={zone} onScroll={surDefilement}>
         {peutPlus && (

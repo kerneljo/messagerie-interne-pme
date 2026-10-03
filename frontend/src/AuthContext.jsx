@@ -38,6 +38,19 @@ export function AuthProvider({ children }) {
     setUtilisateur(r.data)
   }
 
+  async function inscription({ nom, prenom, email, codePoste, password, passwordConfirmation }) {
+    await api.get('/sanctum/csrf-cookie')
+    const r = await api.post('/api/register', {
+      nom,
+      prenom,
+      email,
+      code_poste: codePoste,
+      password,
+      password_confirmation: passwordConfirmation,
+    })
+    setUtilisateur(r.data)
+  }
+
   async function deconnexion() {
     try {
       await api.post('/api/logout')
@@ -47,7 +60,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ utilisateur, chargement, connexion, deconnexion }}>
+    <AuthContext.Provider value={{ utilisateur, chargement, connexion, inscription, deconnexion }}>
       {children}
     </AuthContext.Provider>
   )

@@ -1,2 +1,1 @@
-Conception et développement d’une plateforme sécurisée de communication interne et de gestion documentaire pour la circulation des informations au sein d’une entreprise
-
+ Conception et développement d'une messagerie interne sécurisée pour PME

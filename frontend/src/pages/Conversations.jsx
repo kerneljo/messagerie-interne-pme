@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { MessagesSquare } from 'lucide-react'
+import { MessageSquare, MessagesSquare, Paperclip, SendHorizontal, Users } from 'lucide-react'
 import { useAuth } from '../AuthContext'
 import { useMessagerie } from '../MessagerieContext'
 import ListeConversations from '../components/ListeConversations'
@@ -26,6 +26,7 @@ export default function Conversations() {
           utilisateur={utilisateur}
           onSelection={(ref) => navigate(`/conversations/${ref}`)}
           onNouvelle={() => navigate('/envoyer')}
+          onNouveauGroupe={() => navigate('/conversations/nouveau-groupe')}
         />
       </section>
 

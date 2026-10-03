@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 
 export default function Login() {
@@ -239,9 +239,9 @@ export default function Login() {
           {/* Lien bas de carte */}
           <p className="mt-6 text-center text-sm text-slate-500">
             Pas encore de compte ?{' '}
-            <a href="#" className="font-semibold text-indigo-600 hover:text-indigo-700">
+            <Link to="/register" className="font-semibold text-indigo-600 hover:text-indigo-700">
               Créer un compte
-            </a>
+            </Link>
           </p>
         </div>
       </div>

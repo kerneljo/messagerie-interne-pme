@@ -1,24 +1,42 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
+import api from '../api'
 
 export default function Register() {
   const { utilisateur, inscription } = useAuth()
   const navigate = useNavigate()
 
-  const [name, setName] = useState('')
+  const [nom, setNom] = useState('')
+  const [prenom, setPrenom] = useState('')
   const [email, setEmail] = useState('')
+  const [codePoste, setCodePoste] = useState('')
+  const [postes, setPostes] = useState([])
+  const [chargementPostes, setChargementPostes] = useState(true)
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [erreur, setErreur] = useState('')
+  const [erreursChamps, setErreursChamps] = useState({})
   const [envoi, setEnvoi] = useState(false)
   const [voirMdp, setVoirMdp] = useState(false)
+  const [succes, setSucces] = useState(false)
+
+  // Charge la liste des postes disponibles
+  useEffect(() => {
+    api
+      .get('/api/postes')
+      .then((r) => setPostes(r.data))
+      .catch(() => setPostes([]))
+      .finally(() => setChargementPostes(false))
+  }, [])
 
   if (utilisateur) return <Navigate to="/" replace />
 
   async function soumettre(e) {
     e.preventDefault()
     setErreur('')
+    setErreursChamps({})
+    setSucces(false)
 
     if (password !== passwordConfirmation) {
       setErreur('Les mots de passe ne correspondent pas.')
@@ -31,24 +49,33 @@ export default function Register() {
 
     setEnvoi(true)
     try {
-      await inscription(name, email, password)
-      navigate('/', { replace: true })
+      await inscription({ nom, prenom, email, codePoste, password, passwordConfirmation })
+      setSucces(true)
+      setTimeout(() => navigate('/', { replace: true }), 600)
     } catch (err) {
-      // Laravel renvoie { message, errors: { email: [...] } }
       const data = err.response?.data
-      const premiereErreur =
-        data?.errors && Object.values(data.errors)[0]?.[0]
-      setErreur(premiereErreur || data?.message || 'Erreur lors de l’inscription.')
+      if (data?.errors) setErreursChamps(data.errors)
+      setErreur(data?.message || 'Erreur lors de l’inscription.')
     } finally {
       setEnvoi(false)
     }
   }
 
-  return (
-    <div className="min-h-screen flex bg-[#f5f7fb] font-sans">
+  const erreurDe = (champ) => erreursChamps[champ]?.[0]
 
-      {/* ===== Colonne gauche ===== */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 xl:p-16 overflow-hidden">
+  return (
+    <div className="relative min-h-screen flex font-sans overflow-hidden bg-[#eef3fb]">
+
+      {/* ===== Cercles concentriques en bas à gauche ===== */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -bottom-[420px] -left-[420px] w-[900px] h-[900px] rounded-full border border-blue-200/60"></div>
+        <div className="absolute -bottom-[320px] -left-[320px] w-[700px] h-[700px] rounded-full border border-blue-200/50"></div>
+        <div className="absolute -bottom-[220px] -left-[220px] w-[500px] h-[500px] rounded-full border border-blue-200/40"></div>
+        <div className="absolute -bottom-[120px] -left-[120px] w-[300px] h-[300px] rounded-full border border-blue-200/30"></div>
+      </div>
+
+      {/* ===== Colonne gauche : présentation ===== */}
+      <div className="relative z-10 hidden lg:flex lg:w-1/2 flex-col justify-between p-12 xl:p-16">
         <div>
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
             <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -56,11 +83,11 @@ export default function Register() {
             </svg>
           </div>
 
-          <p className="mt-10 text-xs font-bold tracking-[0.2em] text-indigo-500 uppercase">
+          <p className="mt-12 text-xs font-bold tracking-[0.2em] text-indigo-500 uppercase">
             Nouveau ici ?
           </p>
 
-          <h1 className="mt-4 text-5xl xl:text-6xl font-bold text-slate-900 leading-[1.05] tracking-tight">
+          <h1 className="mt-5 text-5xl xl:text-6xl font-bold text-slate-900 leading-[1.05] tracking-tight">
             Créez votre<br />espace en 1 minute.
           </h1>
 
@@ -89,15 +116,13 @@ export default function Register() {
         <p className="text-xs text-slate-400">
           © {new Date().getFullYear()} — Votre espace de travail
         </p>
-
-        <div className="pointer-events-none absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full border border-indigo-100/70"></div>
-        <div className="pointer-events-none absolute -bottom-60 -left-60 w-[700px] h-[700px] rounded-full border border-indigo-100/50"></div>
       </div>
 
-      {/* ===== Colonne droite ===== */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10">
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/60 p-8 sm:p-10">
+      {/* ===== Colonne droite : formulaire ===== */}
+      <div className="relative z-10 w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-300/40 p-8 sm:p-10">
 
+          {/* En-tête de la carte */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -113,101 +138,136 @@ export default function Register() {
 
           <hr className="my-6 border-slate-100" />
 
+          {/* Titre */}
           <p className="text-[11px] font-bold tracking-[0.15em] text-indigo-500 uppercase">
             Première visite
           </p>
           <h2 className="mt-2 text-3xl font-bold text-slate-900">Créer un compte</h2>
           <p className="mt-2 text-sm text-slate-500">
-            Remplissez les informations ci-dessous pour commencer.
+            Tous les champs sont obligatoires.
           </p>
 
+          {/* Formulaire */}
           <form onSubmit={soumettre} className="mt-8 space-y-4">
 
-            {/* Nom */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-semibold text-slate-700 mb-2">
-                Nom complet
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                </span>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  autoComplete="name"
-                  placeholder="Jean Dupont"
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50
-                             text-slate-900 placeholder-slate-400 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 focus:bg-white
-                             transition"
-                />
-              </div>
+            {/* Prénom + Nom */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ChampInput
+                id="prenom"
+                label="Prénom"
+                value={prenom}
+                onChange={(e) => setPrenom(e.target.value)}
+                placeholder="Jean"
+                autoComplete="given-name"
+                erreur={erreurDe('prenom')}
+              />
+              <ChampInput
+                id="nom"
+                label="Nom"
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+                placeholder="Dupont"
+                autoComplete="family-name"
+                erreur={erreurDe('nom')}
+              />
             </div>
 
             {/* Email */}
+            <ChampInput
+              id="email"
+              label="Adresse e-mail"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="vous@exemple.fr"
+              autoComplete="email"
+              erreur={erreurDe('email')}
+              icone={
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="M22 7l-10 6L2 7" />
+                </svg>
+              }
+            />
+
+            {/* Poste — select alimenté par l'API */}
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-2">
-                Adresse e-mail
+              <label htmlFor="code_poste" className="block text-sm font-semibold text-slate-700 mb-2">
+                Poste
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="4" width="20" height="16" rx="2" />
-                    <path d="M22 7l-10 6L2 7" />
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="7" width="20" height="14" rx="2" />
+                    <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
                   </svg>
                 </span>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                <select
+                  id="code_poste"
+                  value={codePoste}
+                  onChange={(e) => setCodePoste(e.target.value)}
                   required
-                  autoComplete="email"
-                  placeholder="vous@exemple.fr"
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50
-                             text-slate-900 placeholder-slate-400 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 focus:bg-white
-                             transition"
-                />
+                  disabled={chargementPostes}
+                  className={`w-full pl-12 pr-10 py-3.5 rounded-xl border bg-slate-50/60
+                             text-slate-900 text-sm appearance-none cursor-pointer
+                             focus:outline-none focus:ring-4 focus:bg-white
+                             transition-all duration-150 disabled:opacity-60
+                             ${erreurDe('code_poste')
+                               ? 'border-red-300 focus:border-red-400 focus:ring-red-500/15'
+                               : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/15'}`}
+                >
+                  <option value="">
+                    {chargementPostes ? 'Chargement…' : '— Choisir un poste —'}
+                  </option>
+                  {postes.map((p) => (
+                    <option key={p.code_poste} value={p.code_poste}>
+                      {p.libelle}
+                    </option>
+                  ))}
+                </select>
+                <span className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </span>
               </div>
+              {erreurDe('code_poste') && (
+                <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8v4M12 16h.01" />
+                  </svg>
+                  {erreurDe('code_poste')}
+                </p>
+              )}
+              {!chargementPostes && postes.length === 0 && (
+                <p className="mt-1.5 text-xs text-amber-600">
+                  Aucun poste disponible. Contactez un administrateur.
+                </p>
+              )}
             </div>
 
             {/* Mot de passe */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-2">
-                Mot de passe
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0110 0v4" />
-                  </svg>
-                </span>
-                <input
-                  id="password"
-                  type={voirMdp ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  placeholder="8 caractères minimum"
-                  className="w-full pl-11 pr-11 py-3 rounded-xl border border-slate-200 bg-slate-50/50
-                             text-slate-900 placeholder-slate-400 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 focus:bg-white
-                             transition"
-                />
+            <ChampInput
+              id="password"
+              label="Mot de passe"
+              type={voirMdp ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="8 caractères minimum"
+              autoComplete="new-password"
+              erreur={erreurDe('password')}
+              icone={
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" />
+                  <path d="M7 11V7a5 5 0 0110 0v4" />
+                </svg>
+              }
+              actionDroite={
                 <button
                   type="button"
                   onClick={() => setVoirMdp(!voirMdp)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition"
+                  className="text-slate-400 hover:text-slate-600 transition"
                   aria-label={voirMdp ? 'Masquer' : 'Afficher'}
                 >
                   {voirMdp ? (
@@ -222,40 +282,37 @@ export default function Register() {
                     </svg>
                   )}
                 </button>
-              </div>
-            </div>
+              }
+            />
 
             {/* Confirmation */}
-            <div>
-              <label htmlFor="password_confirmation" className="block text-sm font-semibold text-slate-700 mb-2">
-                Confirmer le mot de passe
-              </label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0110 0v4" />
-                  </svg>
-                </span>
-                <input
-                  id="password_confirmation"
-                  type={voirMdp ? 'text' : 'password'}
-                  value={passwordConfirmation}
-                  onChange={(e) => setPasswordConfirmation(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  placeholder="Répétez le mot de passe"
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50
-                             text-slate-900 placeholder-slate-400 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 focus:bg-white
-                             transition"
-                />
-              </div>
-            </div>
+            <ChampInput
+              id="password_confirmation"
+              label="Confirmer le mot de passe"
+              type={voirMdp ? 'text' : 'password'}
+              value={passwordConfirmation}
+              onChange={(e) => setPasswordConfirmation(e.target.value)}
+              placeholder="Répétez le mot de passe"
+              autoComplete="new-password"
+              erreur={erreurDe('password_confirmation')}
+              icone={
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" />
+                  <path d="M7 11V7a5 5 0 0110 0v4" />
+                </svg>
+              }
+              valide={
+                passwordConfirmation.length > 0 &&
+                password === passwordConfirmation
+              }
+            />
 
-            {/* Erreur */}
+            {/* Force du mot de passe */}
+            {password.length > 0 && <IndicateurForce password={password} />}
+
+            {/* Erreur globale */}
             {erreur && (
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200">
+              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-red-50 border border-red-200">
                 <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M12 8v4M12 16h.01" />
@@ -264,30 +321,49 @@ export default function Register() {
               </div>
             )}
 
+            {/* Succès */}
+            {succes && (
+              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                <svg className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+                <p className="text-sm text-emerald-700">Compte créé avec succès ! Redirection…</p>
+              </div>
+            )}
+
             {/* Bouton */}
             <button
               type="submit"
-              disabled={envoi}
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold text-white text-sm
+              disabled={envoi || succes}
+              className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-xl font-semibold text-white text-sm
                          bg-gradient-to-r from-indigo-500 to-violet-600
                          hover:from-indigo-600 hover:to-violet-700
+                         active:scale-[0.99]
                          shadow-lg shadow-indigo-500/30
                          focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
                          disabled:opacity-60 disabled:cursor-not-allowed
-                         transition-all"
+                         transition-all duration-200"
             >
               {envoi ? (
                 <>
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                   </svg>
-                  Création...
+                  Création du compte…
+                </>
+              ) : succes ? (
+                <>
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Compte créé
                 </>
               ) : (
                 <>
                   Créer mon compte
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
                 </>
@@ -295,9 +371,10 @@ export default function Register() {
             </button>
           </form>
 
+          {/* Lien bas de carte */}
           <p className="mt-6 text-center text-sm text-slate-500">
             Déjà un compte ?{' '}
-            <Link to="/login" className="font-semibold text-indigo-600 hover:text-indigo-700">
+            <Link to="/login" className="font-semibold text-indigo-600 hover:text-indigo-700 transition">
               Se connecter
             </Link>
           </p>
@@ -305,4 +382,119 @@ export default function Register() {
       </div>
     </div>
   )
+}
+
+/* ============================================================
+   Champ de saisie réutilisable
+   ============================================================ */
+function ChampInput({
+  id,
+  label,
+  type = 'text',
+  value,
+  onChange,
+  placeholder,
+  autoComplete,
+  erreur,
+  icone,
+  actionDroite,
+  valide,
+}) {
+  const bordure = erreur
+    ? 'border-red-300 focus:border-red-400 focus:ring-red-500/15'
+    : valide
+      ? 'border-emerald-300 focus:border-emerald-400 focus:ring-emerald-500/15'
+      : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/15'
+
+  return (
+    <div>
+      <label htmlFor={id} className="block text-sm font-semibold text-slate-700 mb-2">
+        {label}
+      </label>
+      <div className="relative">
+        {icone && (
+          <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+            {icone}
+          </span>
+        )}
+        <input
+          id={id}
+          type={type}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          required
+          className={`w-full ${icone ? 'pl-12' : 'pl-4'} ${actionDroite ? 'pr-12' : 'pr-4'} py-3.5
+                     rounded-xl border bg-slate-50/60 text-slate-900 placeholder-slate-400 text-sm
+                     focus:outline-none focus:ring-4 focus:bg-white
+                     transition-all duration-150 ${bordure}`}
+        />
+        {actionDroite && (
+          <span className="absolute inset-y-0 right-0 pr-4 flex items-center">
+            {actionDroite}
+          </span>
+        )}
+        {valide && !actionDroite && (
+          <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-emerald-500">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </span>
+        )}
+      </div>
+      {erreur && (
+        <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
+          {erreur}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/* ============================================================
+   Indicateur de force du mot de passe
+   ============================================================ */
+function IndicateurForce({ password }) {
+  const score = calculerScore(password)
+
+  const niveaux = [
+    { label: 'Faible', couleur: 'bg-red-500', texte: 'text-red-600' },
+    { label: 'Moyen', couleur: 'bg-amber-500', texte: 'text-amber-600' },
+    { label: 'Bon', couleur: 'bg-blue-500', texte: 'text-blue-600' },
+    { label: 'Excellent', couleur: 'bg-emerald-500', texte: 'text-emerald-600' },
+  ]
+
+  const niveau = niveaux[score]
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1.5">
+        {[0, 1, 2, 3].map((i) => (
+          <span
+            key={i}
+            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+              i <= score ? niveau.couleur : 'bg-slate-200'
+            }`}
+          />
+        ))}
+      </div>
+      <p className={`text-xs font-medium ${niveau.texte}`}>
+        Force : {niveau.label}
+      </p>
+    </div>
+  )
+}
+
+function calculerScore(password) {
+  let score = 0
+  if (password.length >= 8) score++
+  if (password.length >= 12) score++
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++
+  if (/\d/.test(password) && /[^A-Za-z0-9]/.test(password)) score++
+  return Math.min(score, 3)
 }

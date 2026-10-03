@@ -34,60 +34,149 @@ class ConversationController extends Controller
                     });
             }])
             ->withMax('messages as derniere_activite', 'date_envoi')
-            ->addSelect(['dernier_message' => Message::select('contenu')
-                ->whereColumn('message.reference_conversation', 'conversation.reference_conversation')
-                ->orderByDesc('reference_message')
-                ->limit(1)])
+            ->addSelect([
+                'dernier_message' => Message::select('contenu')
+                    ->whereColumn('message.reference_conversation', 'conversation.reference_conversation')
+                    ->orderByDesc('reference_message')
+                    ->limit(1),
+                'dernier_message_expediteur' => Message::select('matricule_expediteur')
+                    ->whereColumn('message.reference_conversation', 'conversation.reference_conversation')
+                    ->orderByDesc('reference_message')
+                    ->limit(1),
+            ])
             ->orderByRaw('derniere_activite DESC NULLS LAST')
             ->get();
 
         return response()->json($conversations->map(fn ($c) => $this->presenter($c, $u))->values());
     }
 
+    /**
+     * Envoi d'un message (auto-détection du type) :
+     *   - 1 destinataire → crée/utilise UNE conversation DIRECT, envoie le message
+     *   - N destinataires → crée/utilise N conversations DIRECT, envoie le message dans chacune
+     *                        (mode "Envoi multiple" — chacun peut répondre individuellement)
+     *
+     * Les groupes (type=GROUPE) sont créés via l'endpoint dédié creerGroupe().
+     */
     public function store(Request $request): JsonResponse
     {
         $u = $request->user();
 
         $data = $request->validate([
-            'type' => ['required', Rule::in(['DIRECT', 'GROUPE', 'DIFFUSION'])],
-            'titre' => [Rule::requiredIf($request->input('type') !== 'DIRECT'), 'nullable', 'string', 'max:150'],
             'participants' => ['required', 'array', 'min:1', 'max:200'],
+            'participants.*' => ['integer', 'distinct',
+                Rule::exists('utilisateur', 'matricule')->where('statut_compte', 'actif')],
+            'message' => ['required', 'string', 'max:5000'],
+        ]);
+
+        // On retire l'expéditeur de la liste s'il s'est ajouté
+        $destinataires = collect($data['participants'])
+            ->map(fn ($m) => (int) $m)
+            ->reject(fn ($m) => $m === (int) $u->matricule)
+            ->unique()
+            ->values();
+
+        if ($destinataires->isEmpty()) {
+            throw ValidationException::withMessages([
+                'participants' => 'Vous devez sélectionner au moins un destinataire.',
+            ]);
+        }
+
+        // ========================================================
+        // CAS 1 — Un seul destinataire → conversation DIRECT
+        // ========================================================
+        if ($destinataires->count() === 1) {
+            $idDestinataire = (int) $destinataires->first();
+
+            $conversation = DB::transaction(function () use ($u, $idDestinataire, $data) {
+                $conv = $this->trouverOuCreerDirect($u, $idDestinataire);
+
+                Message::create([
+                    'contenu' => $data['message'],
+                    'matricule_expediteur' => $u->matricule,
+                    'reference_conversation' => $conv->reference_conversation,
+                ]);
+
+                return $conv;
+            });
+            $conversation->refresh();
+
+            Audit::log('ENVOI_MESSAGE', $u->matricule,
+                "conversation #{$conversation->reference_conversation} (DIRECT)");
+
+            return response()->json([
+                'type' => 'DIRECT',
+                'nombre' => 1,
+                'conversation' => $this->presenter($conversation->load('participants'), $u),
+            ], 201);
+        }
+
+        // ========================================================
+        // CAS 2 — Plusieurs destinataires → ENVOI MULTIPLE
+        // Crée/récupère une conversation DIRECT avec chacun
+        // ========================================================
+        $conversations = DB::transaction(function () use ($u, $destinataires, $data) {
+            $resultat = [];
+
+            foreach ($destinataires as $idDestinataire) {
+                $conv = $this->trouverOuCreerDirect($u, $idDestinataire);
+
+                Message::create([
+                    'contenu' => $data['message'],
+                    'matricule_expediteur' => $u->matricule,
+                    'reference_conversation' => $conv->reference_conversation,
+                ]);
+
+                $resultat[] = $conv;
+            }
+
+            return $resultat;
+        });
+
+        Audit::log('ENVOI_MULTIPLE', $u->matricule,
+            count($conversations) . " conversation(s) mises à jour");
+
+        return response()->json([
+            'type' => 'MULTIPLE',
+            'nombre' => count($conversations),
+            'conversations' => collect($conversations)->map(
+                fn ($c) => $this->presenter($c->fresh('participants'), $u)
+            )->values(),
+        ], 201);
+    }
+
+    /**
+     * Création d'un groupe (3 participants minimum, titre obligatoire).
+     * Endpoint dédié, utilisé depuis la page "Nouveau groupe".
+     */
+    public function creerGroupe(Request $request): JsonResponse
+    {
+        $u = $request->user();
+
+        $data = $request->validate([
+            'titre' => ['required', 'string', 'max:150'],
+            'participants' => ['required', 'array', 'min:2', 'max:200'],
             'participants.*' => ['integer', 'distinct',
                 Rule::exists('utilisateur', 'matricule')->where('statut_compte', 'actif')],
         ]);
 
-        // Le createur est toujours participant
+        // On ajoute le créateur aux membres
         $membres = collect($data['participants'])
             ->map(fn ($m) => (int) $m)
             ->push((int) $u->matricule)
             ->unique()
             ->values();
 
-        $erreur = match ($data['type']) {
-            'DIRECT' => $membres->count() !== 2 ? 'Une conversation directe a exactement 2 participants.' : null,
-            'GROUPE' => $membres->count() < 3 ? 'Un groupe a au moins 3 participants.' : null,
-            'DIFFUSION' => $membres->count() < 2 ? 'Une diffusion a au moins 2 personnes.' : null,
-        };
-        if ($erreur) {
-            throw ValidationException::withMessages(['participants' => $erreur]);
-        }
-
-        // Une seule conversation directe par paire d'utilisateurs
-        if ($data['type'] === 'DIRECT') {
-            $autre = $membres->first(fn ($m) => $m !== (int) $u->matricule);
-            $existante = Conversation::where('type', 'DIRECT')
-                ->whereHas('participants', fn ($q) => $q->where('utilisateur.matricule', $u->matricule))
-                ->whereHas('participants', fn ($q) => $q->where('utilisateur.matricule', $autre))
-                ->first();
-            if ($existante) {
-                return response()->json($this->presenter($existante, $u));
-            }
+        if ($membres->count() < 3) {
+            throw ValidationException::withMessages([
+                'participants' => 'Un groupe doit avoir au moins 3 participants (vous compris).',
+            ]);
         }
 
         $conversation = DB::transaction(function () use ($data, $u, $membres) {
             $c = Conversation::create([
-                'titre' => $data['type'] === 'DIRECT' ? null : $data['titre'],
-                'type' => $data['type'],
+                'titre' => $data['titre'],
+                'type' => 'GROUPE',
                 'matricule_createur' => $u->matricule,
             ]);
             $c->participants()->attach($membres->all());
@@ -96,10 +185,13 @@ class ConversationController extends Controller
         });
         $conversation->refresh();
 
-        Audit::log('CREATION_CONVERSATION', $u->matricule,
-            "conversation #{$conversation->reference_conversation} ({$conversation->type})");
+        Audit::log('CREATION_GROUPE', $u->matricule,
+            "conversation #{$conversation->reference_conversation} : {$conversation->titre}");
 
-        return response()->json($this->presenter($conversation, $u), 201);
+        return response()->json(
+            $this->presenter($conversation->load('participants'), $u),
+            201
+        );
     }
 
     public function show(Request $request, Conversation $conversation): JsonResponse
@@ -147,11 +239,65 @@ class ConversationController extends Controller
         return response()->json($this->presenter($conversation->fresh(), $request->user()));
     }
 
+    /**
+     * Ouvre (ou crée) une conversation directe avec un utilisateur donné.
+     * Utilisé depuis la page profil.
+     */
+    public function ouvrirDirect(Request $request, Utilisateur $utilisateur): JsonResponse
+    {
+        $moi = $request->user();
+
+        if ((int) $moi->matricule === (int) $utilisateur->matricule) {
+            return response()->json(['message' => 'Impossible d’ouvrir une conversation avec vous-même.'], 422);
+        }
+
+        if ($utilisateur->statut_compte !== 'actif') {
+            return response()->json(['message' => 'Cet utilisateur n’est pas actif.'], 422);
+        }
+
+        $conversation = DB::transaction(function () use ($moi, $utilisateur) {
+            return $this->trouverOuCreerDirect($moi, (int) $utilisateur->matricule);
+        });
+        $conversation->refresh();
+
+        return response()->json(
+            $this->presenter($conversation->load('participants'), $moi)
+        );
+    }
+
+    // ============================================================
+    // Helpers
+    // ============================================================
+
+    /**
+     * Cherche une conversation DIRECT entre deux utilisateurs, ou la crée.
+     */
+    private function trouverOuCreerDirect(Utilisateur $expediteur, int $idDestinataire): Conversation
+    {
+        $existante = Conversation::where('type', 'DIRECT')
+            ->whereHas('participants', fn ($q) => $q->where('utilisateur.matricule', $expediteur->matricule))
+            ->whereHas('participants', fn ($q) => $q->where('utilisateur.matricule', $idDestinataire))
+            ->first();
+
+        if ($existante) {
+            return $existante;
+        }
+
+        $conv = Conversation::create([
+            'titre' => null,
+            'type' => 'DIRECT',
+            'matricule_createur' => $expediteur->matricule,
+        ]);
+        $conv->participants()->attach([$expediteur->matricule, $idDestinataire]);
+
+        return $conv;
+    }
+
     private function presenter(Conversation $c, Utilisateur $u): array
     {
         $c->loadMissing('participants');
 
-        // Conversation directe : le titre affiche est le nom de l'autre personne
+        // Conversation directe : le titre affiché est le nom de l'autre personne
         $titre = $c->type === 'DIRECT'
             ? $c->participants->where('matricule', '!=', $u->matricule)
                 ->map(fn ($p) => $p->prenom . ' ' . $p->nom)->implode(', ')
@@ -167,10 +313,12 @@ class ConversationController extends Controller
                 'matricule' => $p->matricule,
                 'nom' => $p->nom,
                 'prenom' => $p->prenom,
+                'photo_url' => $p->photo_url,
                 'poste' => $p->poste,
             ])->values(),
             'non_lus' => (int) ($c->non_lus ?? 0),
             'dernier_message' => isset($c->dernier_message) ? Str::limit($c->dernier_message, 80) : null,
+            'dernier_message_expediteur' => $c->dernier_message_expediteur ?? null,
             'derniere_activite' => isset($c->derniere_activite)
                 ? Carbon::parse($c->derniere_activite)->toIso8601String() : null,
         ];
