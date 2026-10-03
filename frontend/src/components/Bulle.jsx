@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 import { heureSeule, tailleLisible } from '../utils'
 import EffetPoussiere from './EffetPoussiere'
+import ApercuImages from './ApercuImages'
+import ConfirmationModal from './ConfirmationModal'
 
 const REACTIONS_RAPIDES = ['👍', '❤️', '😂', '🔥', '😮', '😢']
 const LARGEUR_MENU = 208
@@ -261,8 +263,14 @@ export default function Bulle({ m, moi, conversation, onRepondre, onModifier, on
     if (m.contenu) navigator.clipboard?.writeText(m.contenu)
   }
 
+  const [confirmation, setConfirmation] = useState(false)
+
   function demanderSuppression() {
-    if (!window.confirm('Supprimer ce message ?')) return
+    setConfirmation(true)
+  }
+
+  function confirmerSuppression() {
+    setConfirmation(false)
     const el = bulleVisuelleRef.current
     const reduit = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     if (!el || reduit) {
@@ -365,31 +373,7 @@ export default function Bulle({ m, moi, conversation, onRepondre, onModifier, on
           )}
 
           {m.fichiers.length > 0 && (
-            <ul className="mt-2 space-y-1.5">
-              {m.fichiers.map((f) => (
-                <li key={f.reference_fichier}>
-                  <a
-                    href={`/api/fichiers/${f.reference_fichier}`}
-                    download
-                    className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition ${
-                      moi ? 'bg-blue-700/50 hover:bg-blue-700' : 'border border-slate-200 bg-slate-50 hover:bg-slate-100'
-                    }`}
-                  >
-                    <span className={`flex size-8 shrink-0 items-center justify-center rounded-md ${
-                      moi ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200'
-                    }`}>
-                      <Paperclip className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{f.nom_original}</span>
-                      <span className={`block text-xs ${moi ? 'text-blue-100' : 'text-slate-500'}`}>
-                        {tailleLisible(f.taille)}
-                      </span>
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
+            <ApercuImages fichiers={m.fichiers} moi={moi} />
           )}
 
           {/* Métadonnées (heure + statut) */}
@@ -439,6 +423,18 @@ export default function Bulle({ m, moi, conversation, onRepondre, onModifier, on
           onFin={() => onSupprimer(m)}
         />
       )}
+
+      {/* Modal de confirmation */}
+      <ConfirmationModal
+        ouvert={confirmation}
+        onFermer={() => setConfirmation(false)}
+        onConfirmer={confirmerSuppression}
+        titre="Supprimer ce message ?"
+        message="Ce message sera définitivement supprimé pour tous les participants. Cette action est irréversible."
+        texteConfirmer="Supprimer"
+        texteAnnuler="Annuler"
+        variant="danger"
+      />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Paperclip, SendHorizontal, X } from 'lucide-react'
+import { ArrowLeft, Paperclip, SendHorizontal, X, Smile } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../AuthContext'
@@ -10,6 +10,7 @@ import { libelleJour, messageErreur, tailleLisible } from '../utils'
 import { Avatar, Bouton } from './ui'
 import EmojiPicker, { HAUTEUR_PICKER, LARGEUR_PICKER } from './EmojiPicker'
 import Bulle, { BulleAnimee } from './Bulle'
+import ModalApercu from './ModalApercu'
 
 const TYPES_ACCEPTES = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.txt,.csv,.png,.jpg,.jpeg,.gif,.webp'
 const MAX_FICHIERS = 5
@@ -34,6 +35,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
   const [edition, setEdition] = useState(null)
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState('')
+  const [pickerSaisieOuvert, setPickerSaisieOuvert] = useState(false)
 
   // Picker d'emojis global (ouvert depuis la barre de réactions)
   const [pickerPour, setPickerPour] = useState(null)
@@ -398,7 +400,46 @@ export default function Discussion({ conversation, onLu, onRetour }) {
               className="max-h-32 min-h-10 flex-1 resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700 placeholder-slate-500
                          focus-visible:outline-2 focus-visible:outline-blue-600"
             />
-            <Bouton variante="primaire" className="h-10 shrink-0" onClick={envoyer} disabled={envoi}>
+
+            {/* Bouton emoji à côté du textarea */}
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setPickerSaisieOuvert(!pickerSaisieOuvert)}
+                className={`flex size-10 items-center justify-center rounded-lg border transition ${
+                  pickerSaisieOuvert
+                    ? 'border-indigo-300 bg-indigo-50 text-indigo-600'
+                    : 'border-slate-300 text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+                title="Emojis"
+                aria-label="Ouvrir le sélecteur d'emojis"
+              >
+                <Smile className="size-5" />
+              </button>
+
+              {pickerSaisieOuvert && createPortal(
+                <div className="fixed inset-0 z-[100]" onClick={() => setPickerSaisieOuvert(false)}>
+                  <div
+                    className="absolute"
+                    style={{ bottom: '88px', right: '16px' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <EmojiPicker
+                      onSelection={(emoji) => setTexte((t) => t + emoji)}
+                      onFermer={() => setPickerSaisieOuvert(false)}
+                    />
+                  </div>
+                </div>,
+                document.body
+              )}
+            </div>
+
+            <Bouton
+              variante="primaire"
+              className="h-10 shrink-0"
+              onClick={envoyer}
+              disabled={envoi || (!texte.trim() && fichiers.length === 0)}
+            >
               <SendHorizontal className="size-4" />
               {edition ? 'Enregistrer' : 'Envoyer'}
             </Bouton>
@@ -409,6 +450,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
           Diffusion : seul le créateur peut écrire dans cette conversation.
         </footer>
       )}
-    </div>
+
+      </div>
   )
 }
