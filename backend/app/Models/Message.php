@@ -62,6 +62,13 @@ class Message extends Model
         return $this->hasMany(Message::class, 'reference_message_parent', 'reference_message');
     }
 
+
+    /** REAGIR : réactions sur ce message. */
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(Reaction::class, 'reference_message', 'reference_message');
+    }
+
     /** JOINDRE */
     public function fichiers(): HasMany
     {

@@ -187,6 +187,7 @@ class MessageController extends Controller
             ])->values(),
             'lu_par_moi' => (bool) ($m->lu_par_moi ?? false),
             'nb_lecteurs' => (int) ($m->lecteurs_count ?? 0),
+            'reactions' => \App\Http\Controllers\ReactionController::agreger($m),
         ];
     }
 

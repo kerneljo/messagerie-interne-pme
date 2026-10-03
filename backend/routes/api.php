@@ -51,6 +51,7 @@ Route::middleware(['auth:sanctum', CompteActif::class])->group(function () {
     Route::post('/conversations/{conversation}/messages', [MessageController::class, 'store']);
     Route::post('/conversations/{conversation}/lu', [MessageController::class, 'marquerLus']);
     Route::patch('/messages/{message}', [MessageController::class, 'update']);
+    Route::post('/messages/{message}/reactions', [App\Http\Controllers\ReactionController::class, 'toggle']);
     Route::delete('/messages/{message}', [MessageController::class, 'destroy']);
 
     Route::get('/fichiers/{fichier}', [FichierController::class, 'telecharger']);

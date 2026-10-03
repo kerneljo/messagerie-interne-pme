@@ -1,61 +1,115 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
-const CATEGORIES = {
-  'Fréquents': ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅', '🎉', '👏', '😊', '🤔', '😍', '🥳', '😅', '🙌', '💪', '👀', '💡', '⚡', '⭐', '🚀', '💯', '🎯'],
-  'Émotions': ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴'],
-  'Gestes': ['👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🖖', '👋', '🤝', '🙏', '💪', '🦾', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲'],
-  'Objets': ['📎', '📁', '📂', '📅', '📆', '📇', '📈', '📉', '📊', '📋', '📌', '📍', '📏', '📐', '✂️', '🗃️', '🗄️', '🗑️', '🔒', '🔓', '🔑', '🔨', '🔧', '🔩', '⚙️', '💼', '📞', '📱', '💻', '🖥️', '⌨️', '🖱️', '🖨️', '💡', '🔔', '📢', '📣', '⏰', '⏱️'],
-  'Symboles': ['✅', '❌', '⚠️', '❗', '❓', '💯', '🔥', '⭐', '✨', '💫', '⚡', '💥', '💢', '💤', '💬', '💭', '🗯️', '♻️', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🔺', '🔻', '🔸', '🔹'],
-}
+const CATEGORIES = [
+  {
+    id: 'frequents',
+    nom: 'Fréquents',
+    emojis: ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅', '🎉', '👏', '😊', '🤔', '😍', '🥳', '😅', '🙌', '💪', '👀', '💡', '⚡', '⭐', '🚀', '💯', '🎯'],
+  },
+  {
+    id: 'emotions',
+    nom: 'Émotions',
+    emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴'],
+  },
+  {
+    id: 'gestes',
+    nom: 'Gestes',
+    emojis: ['👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🖖', '👋', '🤝', '🙏', '💪', '🦾', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲'],
+  },
+  {
+    id: 'animaux',
+    nom: 'Animaux',
+    emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄'],
+  },
+  {
+    id: 'nourriture',
+    nom: 'Nourriture',
+    emojis: ['🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🌽', '🥕', '🌶️', '🥒', '🥬', '🍞', '🥐', '🥖', '🍔', '🍕', '🍟'],
+  },
+  {
+    id: 'activites',
+    nom: 'Activités',
+    emojis: ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🎿', '⛷️', '🏂', '🪂', '🏋️', '🤼', '🤸', '⛹️', '🤺', '🤾', '🏌️', '🏇', '🧘'],
+  },
+  {
+    id: 'objets',
+    nom: 'Objets',
+    emojis: ['📎', '📁', '📂', '📅', '📆', '📇', '📈', '📉', '📊', '📋', '📌', '📍', '📏', '📐', '✂️', '🗃️', '🗄️', '🗑️', '🔒', '🔓', '🔑', '🔨', '🔧', '🔩', '⚙️', '💼', '📞', '📱', '💻', '🖥️', '⌨️', '🖱️', '🖨️', '💡', '🔔', '📢', '📣', '⏰', '⏱️'],
+  },
+  {
+    id: 'symboles',
+    nom: 'Symboles',
+    emojis: ['✅', '❌', '⚠️', '❗', '❓', '💯', '🔥', '⭐', '✨', '💫', '⚡', '💥', '💢', '💤', '💬', '💭', '🗯️', '♻️', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🔺', '🔻', '🔸', '🔹'],
+  },
+]
+
+export const HAUTEUR_PICKER = 380
+export const LARGEUR_PICKER = 340
 
 export default function EmojiPicker({ onSelection, onFermer }) {
-  const [categorie, setCategorie] = useState('Fréquents')
   const ref = useRef(null)
 
+  // Fermeture avec Échap
   useEffect(() => {
-    function handler(e) {
-      if (ref.current && !ref.current.contains(e.target)) onFermer()
+    const handler = (e) => {
+      if (e.key === 'Escape') onFermer()
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
   }, [onFermer])
-
-  const emojis = CATEGORIES[categorie] || []
 
   return (
     <div
       ref={ref}
-      className="w-80 rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/15 ring-1 ring-black/5 overflow-hidden"
+      className="flex flex-col overflow-hidden rounded-2xl bg-white"
+      style={{
+        width: LARGEUR_PICKER,
+        height: HAUTEUR_PICKER,
+        boxShadow: '0 20px 40px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.06)',
+      }}
     >
-      {/* Onglets catégories */}
-      <div className="flex items-center gap-1 border-b border-slate-100 p-2 overflow-x-auto">
-        {Object.keys(CATEGORIES).map((cat) => (
-          <button
-            key={cat}
-            type="button"
-            onClick={() => setCategorie(cat)}
-            className={`rounded-md px-2 py-1 text-xs font-medium whitespace-nowrap transition ${
-              categorie === cat
-                ? 'bg-indigo-50 text-indigo-700'
-                : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+      {/* Header */}
+      <div className="flex w-full items-center justify-between border-b border-slate-100 bg-slate-50 px-3.5 py-2.5">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          Emojis
+        </span>
+        <button
+          type="button"
+          onClick={onFermer}
+          className="flex size-6 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+          aria-label="Fermer"
+        >
+          <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
-      {/* Grille d'emojis */}
-      <div className="grid grid-cols-8 gap-0.5 p-2 max-h-64 overflow-y-auto">
-        {emojis.map((emoji, i) => (
-          <button
-            key={`${emoji}-${i}`}
-            type="button"
-            onClick={() => onSelection(emoji)}
-            className="flex size-9 items-center justify-center rounded-md text-xl hover:bg-slate-100 active:scale-90 transition"
-          >
-            {emoji}
-          </button>
+      {/* Liste */}
+      <div className="flex-1 overflow-y-auto bg-white px-3 py-2" style={{ overscrollBehavior: 'contain' }}>
+        {CATEGORIES.map((cat, idx) => (
+          <div key={cat.id} className={idx > 0 ? 'mt-4' : ''}>
+            <h4 className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              {cat.nom}
+            </h4>
+            <div className="grid grid-cols-8 gap-0.5">
+              {cat.emojis.map((emoji, i) => (
+                <button
+                  key={`${cat.id}-${emoji}-${i}`}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onSelection(emoji)
+                    onFermer()
+                  }}
+                  className="flex size-9 items-center justify-center rounded-lg text-xl
+                             transition-all hover:scale-110 hover:bg-slate-100 active:scale-95"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </div>
