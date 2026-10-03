@@ -150,7 +150,7 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
           )}
         </nav>
 
-        <div className="border-t border-slate-800 p-3">
+        <div className="border-t border-slate-800 p-3 pb-4">
           {replie ? (
             <div className="flex flex-col items-center gap-2">
              <NavLink to="/profil" onClick={onFermer} title="Mon profil">
