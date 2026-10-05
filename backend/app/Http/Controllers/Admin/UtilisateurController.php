@@ -55,6 +55,7 @@ class UtilisateurController extends Controller
         // Stats globales (indépendantes du filtre)
         $total = Utilisateur::count();
         $actifs = Utilisateur::where('statut_compte', 'actif')->count();
+        $enAttente = Utilisateur::where('statut_compte', 'en_attente')->count();
         $desactives = Utilisateur::where('statut_compte', 'desactive')->count();
 
         return response()->json([
@@ -68,6 +69,7 @@ class UtilisateurController extends Controller
             'stats' => [
                 'total' => $total,
                 'actifs' => $actifs,
+                'en_attente' => $enAttente,
                 'desactives' => $desactives,
             ],
         ]);
@@ -100,7 +102,7 @@ class UtilisateurController extends Controller
             'code_poste' => $data['code_poste'] ?? null,
             'code_service' => $data['code_service'],
             'code_role' => $data['code_role'],
-            'statut_compte' => 'actif',
+            'statut_compte' => 'actif', // créé par un admin → actif directement
         ]);
 
         Audit::log('CREATION_UTILISATEUR', $request->user()->matricule, "utilisateur #{$utilisateur->matricule}");
@@ -195,12 +197,10 @@ class UtilisateurController extends Controller
     {
         $moi = $request->user();
 
-        // Protection : on ne se désactive pas soi-même
         if ((int) $moi->matricule === (int) $utilisateur->matricule) {
             return response()->json(['message' => 'Vous ne pouvez pas désactiver votre propre compte.'], 422);
         }
 
-        // Protection : dernier admin actif
         $roleAdmin = (int) (\App\Models\Role::where('libelle', 'Administrateur')->value('code_role') ?? 0);
         if ((int) $utilisateur->code_role === $roleAdmin && $utilisateur->statut_compte === 'actif') {
             $autresAdminsActifs = Utilisateur::where('code_role', $roleAdmin)
@@ -239,6 +239,57 @@ class UtilisateurController extends Controller
         Audit::log('ACTIVATION_UTILISATEUR', $request->user()->matricule, "utilisateur #{$utilisateur->matricule}");
 
         return response()->json($this->presenter($utilisateur->fresh(['service', 'role', 'poste'])));
+    }
+
+    /** ✅ Validation d'un compte en attente (inscription). */
+    public function valider(Request $request, Utilisateur $utilisateur): JsonResponse
+    {
+        if ($utilisateur->statut_compte !== 'en_attente') {
+            return response()->json(
+                ['message' => 'Ce compte n’est pas en attente de validation.'],
+                422
+            );
+        }
+
+        $utilisateur->update(['statut_compte' => 'actif']);
+
+        Audit::log(
+            'VALIDATION_UTILISATEUR',
+            $request->user()->matricule,
+            "utilisateur #{$utilisateur->matricule}"
+        );
+
+        return response()->json([
+            'message' => 'Compte validé.',
+            'data' => $this->presenter($utilisateur->fresh(['service', 'role', 'poste'])),
+        ]);
+    }
+
+    /** ❌ Refus d'un compte en attente. */
+    public function refuser(Request $request, Utilisateur $utilisateur): JsonResponse
+    {
+        if ($utilisateur->statut_compte !== 'en_attente') {
+            return response()->json(
+                ['message' => 'Ce compte n’est pas en attente de validation.'],
+                422
+            );
+        }
+
+        // On garde la trace du refus mais on bloque la connexion.
+        // Option A (par défaut) : passage en 'desactive'.
+        // Option B : statut dédié 'refuse' (nécessite de l'ajouter au CHECK contrainte / enum).
+        $utilisateur->update(['statut_compte' => 'desactive']);
+
+        Audit::log(
+            'REFUS_UTILISATEUR',
+            $request->user()->matricule,
+            "utilisateur #{$utilisateur->matricule}"
+        );
+
+        return response()->json([
+            'message' => 'Compte refusé.',
+            'data' => $this->presenter($utilisateur->fresh(['service', 'role', 'poste'])),
+        ]);
     }
 
     private function presenter(Utilisateur $u): array

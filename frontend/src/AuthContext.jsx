@@ -7,7 +7,7 @@ export function AuthProvider({ children }) {
   const [utilisateur, setUtilisateur] = useState(null)
   const [chargement, setChargement] = useState(true)
 
-  // Session expiree ou compte desactive : retour a la page de connexion
+  // Session expirée ou compte désactivé : retour à la page de connexion
   useEffect(() => {
     const id = api.interceptors.response.use(
       (reponse) => reponse,
@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
     return () => api.interceptors.response.eject(id)
   }, [])
 
-  // Au chargement : la session existe-t-elle deja ?
+  // Au chargement : la session existe-t-elle déjà ?
   useEffect(() => {
     api
       .get('/api/me')
@@ -33,11 +33,16 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function connexion(email, password) {
-    await api.get('/sanctum/csrf-cookie') // obtient le cookie CSRF
+    await api.get('/sanctum/csrf-cookie')
     const r = await api.post('/api/login', { email, password })
     setUtilisateur(r.data)
   }
 
+  /**
+   * Inscription publique.
+   * ⚠️ Le compte est créé en attente de validation par un administrateur.
+   * L'utilisateur N'EST PAS connecté automatiquement.
+   */
   async function inscription({ nom, prenom, email, codePoste, password, passwordConfirmation }) {
     await api.get('/sanctum/csrf-cookie')
     const r = await api.post('/api/register', {
@@ -48,7 +53,9 @@ export function AuthProvider({ children }) {
       password,
       password_confirmation: passwordConfirmation,
     })
-    setUtilisateur(r.data)
+    // ⚠️ NE PAS appeler setUtilisateur — le compte doit être validé
+    // On retourne juste la réponse pour que Register.jsx puisse l'utiliser
+    return r.data
   }
 
   async function deconnexion() {

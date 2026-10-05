@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Clock, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../AuthContext'
 
 export default function Login() {
@@ -8,6 +9,7 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [motDePasse, setMotDePasse] = useState('')
   const [erreur, setErreur] = useState('')
+  const [typeErreur, setTypeErreur] = useState('') // '' | 'attente' | 'desactive' | 'normal'
   const [envoi, setEnvoi] = useState(false)
   const [voirMdp, setVoirMdp] = useState(false)
 
@@ -16,24 +18,59 @@ export default function Login() {
   async function soumettre(e) {
     e.preventDefault()
     setErreur('')
+    setTypeErreur('')
     setEnvoi(true)
     try {
       await connexion(email, motDePasse)
       navigate('/', { replace: true })
     } catch (err) {
-      setErreur(err.response?.data?.message || 'Erreur de connexion.')
+      const statut = err.response?.status
+      const message = err.response?.data?.message
+
+      if (statut === 403 && message?.includes('attente')) {
+        setTypeErreur('attente')
+        setErreur(
+          'Votre compte est en attente de validation par un administrateur. Vous pourrez vous connecter dès qu’il sera activé.'
+        )
+      } else if (statut === 403 && (message?.includes('désactivé') || message?.includes('desactive'))) {
+        setTypeErreur('desactive')
+        setErreur(
+          'Votre compte a été désactivé. Contactez un administrateur pour plus d’informations.'
+        )
+      } else {
+        setTypeErreur('normal')
+        setErreur(message || 'Erreur de connexion.')
+      }
     } finally {
       setEnvoi(false)
     }
   }
+
+  // Styles de la carte d'erreur selon le type
+  const stylesErreur = {
+    attente: {
+      conteneur: 'bg-amber-50 border-amber-200',
+      icone: 'text-amber-600',
+      texte: 'text-amber-800',
+    },
+    desactive: {
+      conteneur: 'bg-orange-50 border-orange-200',
+      icone: 'text-orange-600',
+      texte: 'text-orange-800',
+    },
+    normal: {
+      conteneur: 'bg-red-50 border-red-200',
+      icone: 'text-red-500',
+      texte: 'text-red-700',
+    },
+  }
+  const style = stylesErreur[typeErreur] || stylesErreur.normal
 
   return (
     <div className="min-h-screen flex bg-[#f5f7fb] font-sans">
 
       {/* ===== Colonne gauche : présentation ===== */}
       <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between p-12 xl:p-16 overflow-hidden">
-
-        {/* Logo + badge en haut */}
         <div>
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
             <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -73,12 +110,10 @@ export default function Login() {
           </ul>
         </div>
 
-        {/* Pied de page gauche */}
         <p className="text-xs text-slate-400">
           © {new Date().getFullYear()} — Votre espace de travail
         </p>
 
-        {/* Décor : grande courbe en bas à gauche */}
         <div className="pointer-events-none absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full border border-indigo-100/70"></div>
         <div className="pointer-events-none absolute -bottom-60 -left-60 w-[700px] h-[700px] rounded-full border border-indigo-100/50"></div>
       </div>
@@ -194,14 +229,24 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Erreur */}
+            {/* ✅ Erreur avec style selon le type */}
             {erreur && (
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200">
-                <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 8v4M12 16h.01" />
-                </svg>
-                <p className="text-sm text-red-700">{erreur}</p>
+              <div className={`flex items-start gap-3 p-3.5 rounded-xl border ${style.conteneur}`}>
+                {typeErreur === 'attente' ? (
+                  <Clock className={`w-5 h-5 flex-shrink-0 mt-0.5 ${style.icone}`} />
+                ) : (
+                  <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${style.icone}`} />
+                )}
+                <div className="flex-1">
+                  <p className={`text-sm ${style.texte}`}>
+                    {erreur}
+                  </p>
+                  {typeErreur === 'attente' && (
+                    <p className="text-xs text-amber-700 mt-1">
+                      💡 Astuce : contactez un administrateur pour accélérer la validation.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 

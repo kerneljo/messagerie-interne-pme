@@ -172,6 +172,7 @@ class MessageController extends Controller
                 'nom' => $m->expediteur->nom,
                 'prenom' => $m->expediteur->prenom,
                 'photo_url' => $m->expediteur->photo_url,
+                'photo_url' => $m->expediteur->photo_url,
             ] : null,
             'reponse_a' => $m->parent ? [
                 'reference_message' => $m->parent->reference_message,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { MessageSquare, Plus, Search, Users } from 'lucide-react'
+import { MessageSquare, Search, SquarePen, Users } from 'lucide-react'
 import { heureCourte } from '../utils'
 import { Avatar } from './ui'
 
@@ -46,15 +46,21 @@ export default function ListeConversations({
   const [menuOuvert, setMenuOuvert] = useState(false)
   const menuRef = useRef(null)
 
+  // Fermeture du menu : clic extérieur ou touche Échap
   useEffect(() => {
     if (!menuOuvert) return
-    function handler(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOuvert(false)
-      }
+    function surClic(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOuvert(false)
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    function surTouche(e) {
+      if (e.key === 'Escape') setMenuOuvert(false)
+    }
+    document.addEventListener('mousedown', surClic)
+    document.addEventListener('keydown', surTouche)
+    return () => {
+      document.removeEventListener('mousedown', surClic)
+      document.removeEventListener('keydown', surTouche)
+    }
   }, [menuOuvert])
 
   const visibles = conversations.filter((c) =>
@@ -65,43 +71,50 @@ export default function ListeConversations({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Barre recherche + bouton + */}
+      {/* Barre recherche + bouton nouveau message */}
       <div className="flex items-center gap-2 border-b border-slate-200 p-3">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
           <input
             type="search"
             value={filtre}
             onChange={(e) => setFiltre(e.target.value)}
             placeholder="Rechercher une conversation…"
             aria-label="Rechercher une conversation"
-            className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm focus-visible:outline-2 focus-visible:outline-blue-600"
+            className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm placeholder-slate-500 focus-visible:outline-2 focus-visible:outline-blue-600"
           />
         </div>
 
         <div className="relative" ref={menuRef}>
           <button
+            type="button"
             onClick={() => setMenuOuvert(!menuOuvert)}
-            className="rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700 transition"
-            aria-label="Nouveau"
-            title="Nouveau"
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm transition hover:bg-blue-700 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            aria-label="Nouveau message"
+            title="Nouveau message"
+            aria-haspopup="menu"
             aria-expanded={menuOuvert}
           >
-            <Plus className="size-5" />
+            <SquarePen className="size-5" />
           </button>
 
           {menuOuvert && (
-            <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50 z-50 overflow-hidden">
+            <div
+              role="menu"
+              className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50"
+            >
               <button
+                type="button"
+                role="menuitem"
                 onClick={() => { setMenuOuvert(false); onNouvelle?.() }}
-                className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition text-left"
+                className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-600"
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mt-0.5">
+                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
                   <MessageSquare className="size-4" />
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-900">Nouveau message</p>
-                  <p className="text-xs text-slate-500 leading-relaxed mt-0.5">
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
                     Direct ou envoi multiple
                   </p>
                 </div>
@@ -110,15 +123,17 @@ export default function ListeConversations({
               <div className="border-t border-slate-100"></div>
 
               <button
+                type="button"
+                role="menuitem"
                 onClick={() => { setMenuOuvert(false); onNouveauGroupe?.() }}
-                className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition text-left"
+                className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-600"
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600 mt-0.5">
+                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
                   <Users className="size-4" />
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-900">Nouveau groupe</p>
-                  <p className="text-xs text-slate-500 leading-relaxed mt-0.5">
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
                     Discussion à 3+ personnes
                   </p>
                 </div>
@@ -131,13 +146,13 @@ export default function ListeConversations({
       {/* Liste groupée */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {visibles.length === 0 && (
-          <p className="p-6 text-center text-sm text-slate-500">Aucune conversation.</p>
+          <p className="p-6 text-center text-sm text-slate-600">Aucune conversation.</p>
         )}
 
         {groupes.map(([periode, items]) => (
           <div key={periode}>
             {/* Séparateur de date */}
-            <div className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-100">
+            <div className="sticky top-0 z-10 border-b border-slate-100 bg-slate-50/95 px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 backdrop-blur">
               {periode}
             </div>
 
@@ -151,8 +166,10 @@ export default function ListeConversations({
                 return (
                   <li key={c.reference_conversation}>
                     <button
+                      type="button"
                       onClick={() => onSelection(c.reference_conversation)}
-                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                      aria-current={actif ? 'true' : undefined}
+                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-600 ${
                         actif ? 'bg-blue-50' : 'hover:bg-slate-50'
                       }`}
                     >
@@ -166,19 +183,19 @@ export default function ListeConversations({
                           <span className={`truncate text-sm ${c.non_lus > 0 ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'}`}>
                             {c.titre}
                           </span>
-                          <span className="shrink-0 text-xs text-slate-400">
+                          <span className="shrink-0 text-xs text-slate-600">
                             {heureCourte(c.derniere_activite)}
                           </span>
                         </span>
                         <span className="mt-0.5 flex items-center justify-between gap-2">
-                          <span className="truncate text-xs text-slate-500">
+                          <span className="truncate text-xs text-slate-600">
                             {ETIQUETTES[c.type] && (
-                              <span className="mr-1 rounded bg-slate-100 px-1 py-0.5 text-[10px] font-medium uppercase text-slate-600">
+                              <span className="mr-1 rounded bg-slate-100 px-1 py-0.5 text-[10px] font-medium uppercase text-slate-700">
                                 {ETIQUETTES[c.type]}
                               </span>
                             )}
                             {estMoi && c.dernier_message && (
-                              <span className="text-slate-400">Vous : </span>
+                              <span className="text-slate-600">Vous : </span>
                             )}
                             {apercu}
                           </span>

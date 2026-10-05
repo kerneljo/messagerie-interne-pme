@@ -18,6 +18,11 @@ class AuthController extends Controller
     private const MAX_TENTATIVES = 5;
     private const BLOCAGE_SECONDES = 300;
 
+    /**
+     * Inscription publique.
+     * Le compte est créé avec le statut "en_attente" et NE connecte PAS l'utilisateur.
+     * Un administrateur devra valider le compte pour qu'il soit utilisable.
+     */
     public function register(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -28,7 +33,7 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'confirmed', Password::min(8)],
         ]);
 
-        // 🔒 Le backend décide : rôle Employe, service Direction, statut actif
+        // 🔒 Le backend décide : rôle Employe, service Direction, statut en_attente
         $role    = Role::where('libelle', 'Employe')->firstOrFail();
         $service = Service::where('nom_service', 'Direction')->firstOrFail();
 
@@ -40,18 +45,23 @@ class AuthController extends Controller
             'mot_de_passe_hash' => $data['password'], // cast 'hashed' → hachage auto
             'code_service'      => $service->code_service,
             'code_role'         => $role->code_role,
-            'statut_compte'     => 'actif',
+            'statut_compte'     => 'en_attente',       // ✅ En attente de validation
             // matricule : généré automatiquement par PostgreSQL (sequence)
         ]);
 
-        Auth::login($utilisateur);
-        $request->session()->regenerate();
+        Audit::log('REGISTER', $utilisateur->matricule, 'Compte créé en attente de validation');
 
-        Audit::log('REGISTER', $utilisateur->matricule);
-
-        return response()->json($this->presenter($utilisateur), 201);
+        // ✅ PAS de Auth::login() → l'utilisateur N'EST PAS connecté
+        return response()->json([
+            'message' => 'Votre compte a été créé. Il est en attente de validation par un administrateur.',
+            'statut'  => 'en_attente',
+        ], 201);
     }
 
+    /**
+     * Connexion.
+     * Refuse les comptes en attente et désactivés AVANT de tenter l'authentification.
+     */
     public function login(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -67,6 +77,19 @@ class AuthController extends Controller
         }
 
         $connu = Utilisateur::where('email', $data['email'])->first();
+
+        // ✅ Vérifie le statut du compte AVANT la tentative d'authentification
+        if ($connu && $connu->statut_compte === 'en_attente') {
+            return response()->json([
+                'message' => 'Votre compte est en attente de validation par un administrateur.',
+            ], 403);
+        }
+
+        if ($connu && $connu->statut_compte === 'desactive') {
+            return response()->json([
+                'message' => 'Votre compte a été désactivé. Contactez un administrateur.',
+            ], 403);
+        }
 
         // Seuls les comptes actifs peuvent se connecter
         $ok = Auth::attempt([
@@ -97,7 +120,6 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

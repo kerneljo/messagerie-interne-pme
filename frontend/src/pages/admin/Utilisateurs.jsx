@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   Plus, Pencil, UserX, UserCheck, Search, Users, Mail, X,
   ChevronLeft, ChevronRight, Shield, Briefcase, Building2, AlertTriangle,
+  Check, XCircle,
 } from 'lucide-react'
 import api from '../../api'
 import { useAuth } from '../../AuthContext'
@@ -17,7 +18,7 @@ export default function AdminUtilisateurs() {
   const { utilisateur: moi } = useAuth()
 
   const [utilisateurs, setUtilisateurs] = useState([])
-  const [stats, setStats] = useState({ total: 0, actifs: 0, desactives: 0 })
+  const [stats, setStats] = useState({ total: 0, actifs: 0, en_attente: 0, desactives: 0 })
   const [meta, setMeta] = useState({ page: 1, derniere_page: 1, total: 0 })
   const [chargement, setChargement] = useState(true)
 
@@ -35,7 +36,7 @@ export default function AdminUtilisateurs() {
 
   // Modales
   const [modalEdition, setModalEdition] = useState(null)   // user ou 'nouveau'
-  const [confirmation, setConfirmation] = useState(null)   // { user, action: 'desactiver' | 'reactiver' }
+  const [confirmation, setConfirmation] = useState(null)   // { user, action }
 
   // Charge les référentiels une fois
   useEffect(() => {
@@ -82,8 +83,12 @@ export default function AdminUtilisateurs() {
     try {
       if (action === 'desactiver') {
         await api.delete(`/api/admin/utilisateurs/${user.matricule}`)
-      } else {
+      } else if (action === 'reactiver') {
         await api.post(`/api/admin/utilisateurs/${user.matricule}/reactiver`)
+      } else if (action === 'valider') {
+        await api.post(`/api/admin/utilisateurs/${user.matricule}/valider`)
+      } else if (action === 'refuser') {
+        await api.post(`/api/admin/utilisateurs/${user.matricule}/refuser`)
       }
       setConfirmation(null)
       charger()
@@ -100,7 +105,13 @@ export default function AdminUtilisateurs() {
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Utilisateurs</h2>
           <p className="mt-1 text-sm text-slate-500">
-            {stats.total} comptes · {stats.actifs} actifs · {stats.desactives} désactivés
+            {stats.total} comptes · {stats.actifs} actifs ·{' '}
+            {stats.en_attente > 0 && (
+              <span className="text-amber-600 font-medium">
+                {stats.en_attente} en attente ·{' '}
+              </span>
+            )}
+            {stats.desactives} désactivés
           </p>
         </div>
         <Bouton variante="primaire" onClick={() => setModalEdition('nouveau')}>
@@ -155,9 +166,25 @@ export default function AdminUtilisateurs() {
         >
           <option value="">Tous les statuts</option>
           <option value="actif">Actif</option>
+          <option value="en_attente">En attente</option>
           <option value="desactive">Désactivé</option>
         </select>
       </div>
+
+      {/* Bannière comptes en attente */}
+      {stats.en_attente > 0 && filtreStatut !== 'en_attente' && (
+        <button
+          onClick={() => setFiltreStatut('en_attente')}
+          className="flex items-center gap-2 w-full px-4 py-3 rounded-xl bg-amber-50 border border-amber-200
+                     text-sm text-amber-800 hover:bg-amber-100 transition-colors"
+        >
+          <AlertTriangle className="size-4 flex-shrink-0" />
+          <span>
+            <strong>{stats.en_attente}</strong> compte{stats.en_attente > 1 ? 's' : ''} en attente de validation
+          </span>
+          <span className="ml-auto text-xs text-amber-600">Cliquez pour filtrer →</span>
+        </button>
+      )}
 
       {/* Tableau */}
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -165,9 +192,11 @@ export default function AdminUtilisateurs() {
           <Chargement />
         ) : utilisateurs.length === 0 ? (
           <EtatVide icone={Users} titre="Aucun utilisateur">
-            {recherche || filtreRole || filtreService || filtreStatut
-              ? 'Aucun résultat pour ces filtres.'
-              : 'Commencez par créer un compte.'}
+            {filtreStatut === 'en_attente'
+              ? 'Aucun compte en attente de validation.'
+              : recherche || filtreRole || filtreService || filtreStatut
+                ? 'Aucun résultat pour ces filtres.'
+                : 'Commencez par créer un compte.'}
           </EtatVide>
         ) : (
           <div className="overflow-x-auto">
@@ -215,13 +244,7 @@ export default function AdminUtilisateurs() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
-                          u.statut_compte === 'actif'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {u.statut_compte === 'actif' ? 'Actif' : 'Désactivé'}
-                        </span>
+                        <BadgeStatut statut={u.statut_compte} />
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
@@ -233,7 +256,29 @@ export default function AdminUtilisateurs() {
                           >
                             <Pencil className="size-4" />
                           </button>
-                          {u.statut_compte === 'actif' ? (
+
+                          {u.statut_compte === 'en_attente' && (
+                            <>
+                              <button
+                                onClick={() => setConfirmation({ user: u, action: 'valider' })}
+                                className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                                aria-label="Valider"
+                                title="Valider le compte"
+                              >
+                                <Check className="size-4" />
+                              </button>
+                              <button
+                                onClick={() => setConfirmation({ user: u, action: 'refuser' })}
+                                className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                aria-label="Refuser"
+                                title="Refuser le compte"
+                              >
+                                <XCircle className="size-4" />
+                              </button>
+                            </>
+                          )}
+
+                          {u.statut_compte === 'actif' && (
                             <button
                               onClick={() => setConfirmation({ user: u, action: 'desactiver' })}
                               disabled={estMoi}
@@ -243,7 +288,9 @@ export default function AdminUtilisateurs() {
                             >
                               <UserX className="size-4" />
                             </button>
-                          ) : (
+                          )}
+
+                          {u.statut_compte === 'desactive' && (
                             <button
                               onClick={() => setConfirmation({ user: u, action: 'reactiver' })}
                               className="rounded-lg p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600"
@@ -294,21 +341,66 @@ export default function AdminUtilisateurs() {
         />
       )}
 
-      {/* Confirmation désactivation/réactivation */}
-      <ConfirmationModal
-        ouvert={!!confirmation}
-        onFermer={() => setConfirmation(null)}
-        onConfirmer={confirmerAction}
-        titre={confirmation?.action === 'desactiver' ? 'Désactiver ce compte ?' : 'Réactiver ce compte ?'}
-        message={
-          confirmation?.action === 'desactiver'
-            ? `${confirmation.user.prenom} ${confirmation.user.nom} ne pourra plus se connecter. Ses données sont conservées.`
-            : `${confirmation?.user?.prenom} ${confirmation?.user?.nom} pourra à nouveau se connecter.`
+      {/* Confirmation valider / refuser / désactiver / réactiver */}
+      {confirmation && (() => {
+        const config = {
+          desactiver: {
+            titre: 'Désactiver ce compte ?',
+            message: `${confirmation.user.prenom} ${confirmation.user.nom} ne pourra plus se connecter. Ses données sont conservées.`,
+            texteConfirmer: 'Désactiver',
+            variant: 'danger',
+          },
+          reactiver: {
+            titre: 'Réactiver ce compte ?',
+            message: `${confirmation.user.prenom} ${confirmation.user.nom} pourra à nouveau se connecter.`,
+            texteConfirmer: 'Réactiver',
+            variant: 'primary',
+          },
+          valider: {
+            titre: 'Valider ce compte ?',
+            message: `${confirmation.user.prenom} ${confirmation.user.nom} pourra se connecter et accéder à la plateforme.`,
+            texteConfirmer: 'Valider',
+            variant: 'primary',
+          },
+          refuser: {
+            titre: 'Refuser ce compte ?',
+            message: `La demande de ${confirmation.user.prenom} ${confirmation.user.nom} sera refusée. Cette action est irréversible.`,
+            texteConfirmer: 'Refuser',
+            variant: 'danger',
+          },
         }
-        texteConfirmer={confirmation?.action === 'desactiver' ? 'Désactiver' : 'Réactiver'}
-        variant={confirmation?.action === 'desactiver' ? 'danger' : 'primary'}
-      />
+        const c = config[confirmation.action]
+        if (!c) return null
+        return (
+          <ConfirmationModal
+            ouvert
+            onFermer={() => setConfirmation(null)}
+            onConfirmer={confirmerAction}
+            titre={c.titre}
+            message={c.message}
+            texteConfirmer={c.texteConfirmer}
+            variant={c.variant}
+          />
+        )
+      })()}
     </div>
+  )
+}
+
+/* ============================================================
+   Badge de statut
+   ============================================================ */
+function BadgeStatut({ statut }) {
+  const config = {
+    actif:      { classe: 'bg-emerald-100 text-emerald-700', libelle: 'Actif' },
+    en_attente: { classe: 'bg-amber-100 text-amber-700',     libelle: 'En attente' },
+    desactive:  { classe: 'bg-red-100 text-red-700',         libelle: 'Désactivé' },
+  }
+  const c = config[statut] || { classe: 'bg-slate-100 text-slate-600', libelle: statut || '—' }
+  return (
+    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${c.classe}`}>
+      {c.libelle}
+    </span>
   )
 }
 

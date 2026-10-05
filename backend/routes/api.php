@@ -64,5 +64,7 @@ Route::middleware(['auth:sanctum', CompteActif::class])->group(function () {
         Route::get('roles', [Admin\RoleController::class, 'index']);
         Route::apiResource('postes', Admin\PosteController::class)->except('show');
         Route::get('/journal-audit', [Admin\JournalAuditController::class, 'index']);
+	Route::post('utilisateurs/{utilisateur}/valider', [Admin\UtilisateurController::class, 'valider']);
+	Route::post('utilisateurs/{utilisateur}/refuser', [Admin\UtilisateurController::class, 'refuser']);
     });
 });

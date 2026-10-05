@@ -29,7 +29,7 @@ function ApercuImage({ fichier }) {
   return (
     <>
       <div className="group relative inline-block max-w-full overflow-hidden rounded-xl bg-black/5">
-        {/* ✅ Image contrainte à 260×260 max (carré-ish, style Telegram) */}
+        {/* Image contrainte à 260×260 max */}
         <img
           src={src}
           alt={fichier.nom_original}
@@ -125,6 +125,7 @@ function ApercuImage({ fichier }) {
 
 /* ============================================================
    Aperçu d'un fichier non-image
+   Carte blanche + pastille bleue (même accent pour les deux côtés)
    ============================================================ */
 function ApercuFichier({ fichier, moi }) {
   const src = `/api/fichiers/${fichier.reference_fichier}`
@@ -133,24 +134,21 @@ function ApercuFichier({ fichier, moi }) {
     <a
       href={src}
       download
-      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition ${
+      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 shadow-sm ring-1 transition ${
         moi
-          ? 'bg-blue-700/40 hover:bg-blue-700/60'
-          : 'border border-slate-200 bg-slate-50 hover:bg-slate-100'
+          ? 'bg-white/95 ring-white/40 hover:bg-white'
+          : 'bg-white ring-slate-300/60 hover:bg-slate-50 hover:ring-slate-300'
       }`}
     >
-      {/* ✅ Bouton ⬇ toujours visible */}
-      <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
-        moi ? 'bg-blue-600 text-white' : 'bg-slate-800 text-white'
-      }`}>
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition group-hover:bg-blue-700">
         <Download className="size-4" />
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className={`block truncate text-sm font-medium ${moi ? 'text-white' : 'text-slate-800'}`}>
+        <span className="block truncate text-sm font-medium text-slate-900">
           {fichier.nom_original}
         </span>
-        <span className={`block text-xs ${moi ? 'text-blue-100' : 'text-slate-500'}`}>
+        <span className="block text-xs text-slate-500">
           {formaterTaille(fichier.taille)}
         </span>
       </span>

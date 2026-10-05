@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Clock, ArrowRight } from 'lucide-react'
 import { useAuth } from '../AuthContext'
 import api from '../api'
 
@@ -20,6 +21,7 @@ export default function Register() {
   const [envoi, setEnvoi] = useState(false)
   const [voirMdp, setVoirMdp] = useState(false)
   const [succes, setSucces] = useState(false)
+  const [messageAttente, setMessageAttente] = useState('')
 
   // Charge la liste des postes disponibles
   useEffect(() => {
@@ -51,7 +53,10 @@ export default function Register() {
     try {
       await inscription({ nom, prenom, email, codePoste, password, passwordConfirmation })
       setSucces(true)
-      setTimeout(() => navigate('/', { replace: true }), 600)
+      setMessageAttente(
+        'Votre compte a été créé avec succès. Il est en attente de validation par un administrateur. Vous pourrez vous connecter dès que votre compte sera activé.'
+      )
+      // ⚠️ PAS de redirection — l'utilisateur n'est PAS connecté
     } catch (err) {
       const data = err.response?.data
       if (data?.errors) setErreursChamps(data.errors)
@@ -160,6 +165,7 @@ export default function Register() {
                 placeholder="Jean"
                 autoComplete="given-name"
                 erreur={erreurDe('prenom')}
+                disabled={succes}
               />
               <ChampInput
                 id="nom"
@@ -169,6 +175,7 @@ export default function Register() {
                 placeholder="Dupont"
                 autoComplete="family-name"
                 erreur={erreurDe('nom')}
+                disabled={succes}
               />
             </div>
 
@@ -182,6 +189,7 @@ export default function Register() {
               placeholder="vous@exemple.fr"
               autoComplete="email"
               erreur={erreurDe('email')}
+              disabled={succes}
               icone={
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="4" width="20" height="16" rx="2" />
@@ -190,7 +198,7 @@ export default function Register() {
               }
             />
 
-            {/* Poste — select alimenté par l'API */}
+            {/* Poste */}
             <div>
               <label htmlFor="code_poste" className="block text-sm font-semibold text-slate-700 mb-2">
                 Poste
@@ -207,7 +215,7 @@ export default function Register() {
                   value={codePoste}
                   onChange={(e) => setCodePoste(e.target.value)}
                   required
-                  disabled={chargementPostes}
+                  disabled={chargementPostes || succes}
                   className={`w-full pl-12 pr-10 py-3.5 rounded-xl border bg-slate-50/60
                              text-slate-900 text-sm appearance-none cursor-pointer
                              focus:outline-none focus:ring-4 focus:bg-white
@@ -257,6 +265,7 @@ export default function Register() {
               placeholder="8 caractères minimum"
               autoComplete="new-password"
               erreur={erreurDe('password')}
+              disabled={succes}
               icone={
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2" />
@@ -295,6 +304,7 @@ export default function Register() {
               placeholder="Répétez le mot de passe"
               autoComplete="new-password"
               erreur={erreurDe('password_confirmation')}
+              disabled={succes}
               icone={
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2" />
@@ -308,7 +318,7 @@ export default function Register() {
             />
 
             {/* Force du mot de passe */}
-            {password.length > 0 && <IndicateurForce password={password} />}
+            {password.length > 0 && !succes && <IndicateurForce password={password} />}
 
             {/* Erreur globale */}
             {erreur && (
@@ -321,14 +331,25 @@ export default function Register() {
               </div>
             )}
 
-            {/* Succès */}
+            {/* ✅ Message "En attente de validation" */}
             {succes && (
-              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
-                <svg className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9 12l2 2 4-4" />
-                </svg>
-                <p className="text-sm text-emerald-700">Compte créé avec succès ! Redirection…</p>
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <Clock className="size-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-900">
+                    Compte en attente de validation
+                  </p>
+                  <p className="text-sm text-amber-800 mt-1 leading-relaxed">
+                    {messageAttente}
+                  </p>
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center gap-1 mt-3 text-sm font-semibold text-amber-900 hover:underline"
+                  >
+                    Retour à la connexion
+                    <ArrowRight className="size-3.5" />
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -399,6 +420,7 @@ function ChampInput({
   icone,
   actionDroite,
   valide,
+  disabled,
 }) {
   const bordure = erreur
     ? 'border-red-300 focus:border-red-400 focus:ring-red-500/15'
@@ -425,10 +447,11 @@ function ChampInput({
           placeholder={placeholder}
           autoComplete={autoComplete}
           required
+          disabled={disabled}
           className={`w-full ${icone ? 'pl-12' : 'pl-4'} ${actionDroite ? 'pr-12' : 'pr-4'} py-3.5
                      rounded-xl border bg-slate-50/60 text-slate-900 placeholder-slate-400 text-sm
                      focus:outline-none focus:ring-4 focus:bg-white
-                     transition-all duration-150 ${bordure}`}
+                     transition-all duration-150 disabled:opacity-60 ${bordure}`}
         />
         {actionDroite && (
           <span className="absolute inset-y-0 right-0 pr-4 flex items-center">
