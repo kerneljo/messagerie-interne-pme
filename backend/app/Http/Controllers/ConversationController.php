@@ -23,7 +23,7 @@ class ConversationController extends Controller
         $u = $request->user();
 
         $conversations = $u->conversations()
-            ->with('participants')
+            ->with('participants.poste')
             ->withCount(['messages as non_lus' => function ($q) use ($u) {
                 $q->where('message.matricule_expediteur', '<>', $u->matricule)
                     ->whereNotExists(function ($sub) use ($u) {
@@ -295,7 +295,7 @@ class ConversationController extends Controller
 
     private function presenter(Conversation $c, Utilisateur $u): array
     {
-        $c->loadMissing('participants');
+        $c->loadMissing('participants.poste');
 
         // Conversation directe : le titre affiché est le nom de l'autre personne
         $titre = $c->type === 'DIRECT'
@@ -314,7 +314,7 @@ class ConversationController extends Controller
                 'nom' => $p->nom,
                 'prenom' => $p->prenom,
                 'photo_url' => $p->photo_url,
-                'poste' => $p->poste,
+                'poste' => $p->poste?->libelle,
             ])->values(),
             'non_lus' => (int) ($c->non_lus ?? 0),
             'dernier_message' => isset($c->dernier_message) ? Str::limit($c->dernier_message, 80) : null,
