@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './AuthContext'
+import { ThemeProvider } from './ThemeContext'
 import Layout from './components/Layout'
 import { Chargement } from './components/ui'
 import Login from './pages/Login'
@@ -38,40 +39,42 @@ function RouteAdmin({ children }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          <Route element={<RoutePrivee><Layout /></RoutePrivee>}>
-            <Route index element={<Dashboard />} />
-            <Route path="recus" element={<Recus />} />
-            <Route path="envoyes" element={<Envoyes />} />
-            <Route path="envoyer" element={<Envoyer />} />
-            <Route path="conversations" element={<Conversations />} />
-            <Route path="conversations/nouveau-groupe" element={<NouveauGroupe />} />
-            <Route path="conversations/:reference" element={<Conversations />} />
-            <Route path="profil" element={<Profil />} />
-            <Route path="utilisateurs/:matricule" element={<ProfilUtilisateur />} />
+            <Route element={<RoutePrivee><Layout /></RoutePrivee>}>
+              <Route index element={<Dashboard />} />
+              <Route path="recus" element={<Recus />} />
+              <Route path="envoyes" element={<Envoyes />} />
+              <Route path="envoyer" element={<Envoyer />} />
+              <Route path="conversations" element={<Conversations />} />
+              <Route path="conversations/nouveau-groupe" element={<NouveauGroupe />} />
+              <Route path="conversations/:reference" element={<Conversations />} />
+              <Route path="profil" element={<Profil />} />
+              <Route path="utilisateurs/:matricule" element={<ProfilUtilisateur />} />
 
-            {/* Administration — layout + sous-routes */}
-            <Route
-              path="admin"
-              element={<RouteAdmin><AdminLayout /></RouteAdmin>}
-            >
-              <Route index element={<AdminVueEnsemble />} />
-              <Route path="utilisateurs" element={<AdminUtilisateurs />} />
-              <Route path="postes" element={<AdminPostes />} />
-              <Route path="services" element={<AdminServices />} />
-              <Route path="roles" element={<AdminRoles />} />
-              <Route path="audit" element={<AdminAudit />} />
+              {/* Administration — layout + sous-routes */}
+              <Route
+                path="admin"
+                element={<RouteAdmin><AdminLayout /></RouteAdmin>}
+              >
+                <Route index element={<AdminVueEnsemble />} />
+                <Route path="utilisateurs" element={<AdminUtilisateurs />} />
+                <Route path="postes" element={<AdminPostes />} />
+                <Route path="services" element={<AdminServices />} />
+                <Route path="roles" element={<AdminRoles />} />
+                <Route path="audit" element={<AdminAudit />} />
+              </Route>
             </Route>
-          </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }

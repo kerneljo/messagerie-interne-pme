@@ -57,7 +57,7 @@ class ProfilController extends Controller
                 'required',
                 'image',
                 'mimes:jpeg,png,jpg,webp',
-                'max:2048', // 2 Mo
+                'max:5120', // 5 Mo
             ],
         ], [
             'photo.required' => 'Aucune image sélectionnée.',

@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { couleurAvatar, initiales } from '../utils'
 
+// Avatars « carrés arrondis » (rayon proportionnel à la taille) : signature visuelle du thème
 const TAILLES_AVATAR = { sm: 'size-8 text-xs', md: 'size-10 text-sm', lg: 'size-12 text-base', xl: 'size-20 text-xl' }
 
 export function Avatar({ prenom, nom, taille = 'md', photoUrl, className = '' }) {
@@ -9,39 +10,52 @@ export function Avatar({ prenom, nom, taille = 'md', photoUrl, className = '' })
       <img
         src={photoUrl}
         alt={`${prenom} ${nom}`}
-        className={`inline-flex shrink-0 items-center justify-center rounded-full object-cover ${TAILLES_AVATAR[taille]} ${className}`}
+        className={`inline-flex shrink-0 items-center justify-center rounded-[30%] object-cover ${TAILLES_AVATAR[taille]} ${className}`}
       />
     )
   }
   return (
     <span
       aria-hidden="true"
-      className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${TAILLES_AVATAR[taille]} ${couleurAvatar(`${prenom}${nom}`)} ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-[30%] font-display font-bold ${TAILLES_AVATAR[taille]} ${couleurAvatar(`${prenom}${nom}`)} ${className}`}
     >
       {initiales(prenom, nom)}
     </span>
   )
 }
 
+/** Les deux bulles de la marque (piment + mangue). */
+export function LogoBulles({ className = 'size-10' }) {
+  return (
+    <svg viewBox="0 0 44 44" className={className} aria-hidden="true">
+      <rect x="2" y="4" width="26" height="22" rx="9" fill="#d1451f" />
+      <path d="M8 26 6 35l10-8Z" fill="#d1451f" />
+      <rect x="16" y="14" width="26" height="22" rx="9" fill="#ffc247" />
+      <path d="M36 36l3 7-9-7Z" fill="#ffc247" />
+    </svg>
+  )
+}
+
+// Boutons d'action : coin inférieur gauche carré, comme une bulle de message
 const VARIANTES = {
-  primaire: 'bg-blue-600 text-white hover:bg-blue-700',
-  secondaire: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
-  fantome: 'text-slate-600 hover:bg-slate-100',
-  danger: 'bg-red-600 text-white hover:bg-red-700',
+  primaire: 'rounded-xl rounded-bl-[5px] bg-blue-600 text-white hover:bg-blue-700',
+  secondaire: 'rounded-xl border border-slate-300 bg-white text-slate-700 hover:bg-slate-50',
+  fantome: 'rounded-xl text-slate-600 hover:bg-slate-100',
+  danger: 'rounded-xl rounded-bl-[5px] bg-red-600 text-white hover:bg-red-700',
 }
 
 export function Bouton({ variante = 'secondaire', className = '', ...props }) {
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTES[variante]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 ${VARIANTES[variante]} ${className}`}
       {...props}
     />
   )
 }
 
 export function Carte({ className = '', children }) {
-  return <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}>{children}</div>
+  return <div className={`rounded-2xl border border-slate-200 bg-papier shadow-sm ${className}`}>{children}</div>
 }
 
 export function Chargement({ texte = 'Chargement...' }) {

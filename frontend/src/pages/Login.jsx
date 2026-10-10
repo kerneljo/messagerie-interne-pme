@@ -78,9 +78,6 @@ export default function Login() {
             </svg>
           </div>
 
-          <p className="mt-10 text-xs font-bold tracking-[0.2em] text-indigo-500 uppercase">
-            Espace sécurisé
-          </p>
 
           <h1 className="mt-4 text-5xl xl:text-6xl font-bold text-slate-900 leading-[1.05] tracking-tight">
             Bienvenue dans<br />votre espace.
@@ -122,19 +119,6 @@ export default function Login() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/60 p-8 sm:p-10">
 
-          {/* En-tête de la carte */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span className="text-[11px] font-bold tracking-[0.15em] text-slate-500 uppercase">
-                Connexion sécurisée
-              </span>
-            </div>
-            <svg className="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <path d="M9 12l2 2 4-4" />
-            </svg>
-          </div>
 
           <hr className="my-6 border-slate-100" />
 
@@ -144,7 +128,7 @@ export default function Login() {
           </p>
           <h2 className="mt-2 text-3xl font-bold text-slate-900">Se connecter</h2>
           <p className="mt-2 text-sm text-slate-500">
-            Entrez vos identifiants pour continuer.
+            Entrez vos adresse e-mail et  mot de passe pour continuer.
           </p>
 
           {/* Formulaire */}
@@ -255,8 +239,8 @@ export default function Login() {
               type="submit"
               disabled={envoi}
               className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl font-semibold text-white text-sm
-                         bg-gradient-to-r from-indigo-500 to-violet-600
-                         hover:from-indigo-600 hover:to-violet-700
+                         bg-blue-500
+                         hover:bg-blue-700
                          shadow-lg shadow-indigo-500/30
                          focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
                          disabled:opacity-60 disabled:cursor-not-allowed

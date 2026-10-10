@@ -1,0 +1,25 @@
+{
+  "name": "stage-l2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Messagerie interne : lance Laravel, Reverb et Vite en une seule commande",
+  "scripts": {
+    "dev": "concurrently -k -n LARAVEL,REVERB,VITE -c blue,magenta,green \"npm:dev:laravel\" \"npm:dev:reverb\" \"npm:dev:vite\"",
+    "dev:laravel": "cd backend && php artisan serve",
+    "dev:reverb": "cd backend && php artisan reverb:start",
+    "dev:reverb:debug": "cd backend && php artisan reverb:start --debug",
+    "dev:vite": "cd frontend && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kerneljo/messagerie-interne-pme.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kerneljo/messagerie-interne-pme/issues"
+  },
+  "homepage": "https://github.com/kerneljo/messagerie-interne-pme#readme",
+  "license": "ISC"
+}

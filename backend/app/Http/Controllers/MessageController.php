@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use App\Events\MessageEnvoye;
+use App\Events\UtilisateurEcrit;
 
 class MessageController extends Controller
 {
@@ -103,12 +106,15 @@ class MessageController extends Controller
 
         $message->refresh()->load(['expediteur', 'fichiers', 'parent.expediteur']);
 
-        Audit::log('ENVOI_MESSAGE', $u->matricule,
+               Audit::log('ENVOI_MESSAGE', $u->matricule,
             "message #{$message->reference_message} dans conversation #{$conversation->reference_conversation}");
         foreach ($message->fichiers as $f) {
             Audit::log('ENVOI_FICHIER', $u->matricule,
                 "fichier #{$f->reference_fichier} ({$f->nom_original}) dans message #{$message->reference_message}");
         }
+
+        // 🔥 Diffusion temps réel aux autres participants
+        broadcast(new MessageEnvoye($message))->toOthers();
 
         return response()->json(self::presenter($message), 201);
     }
@@ -157,6 +163,21 @@ class MessageController extends Controller
         }
 
         return response()->json(['marques' => $ids->count()]);
+    }
+        /** Signale aux autres participants qu'un utilisateur est en train d'écrire. */
+       
+    public function typing(Request $request, Conversation $conversation): Response
+    {
+        Gate::authorize('ecrire', $conversation);
+        $u = $request->user();
+
+        broadcast(new UtilisateurEcrit(
+            (int) $conversation->reference_conversation,
+            (int) $u->matricule,
+            trim($u->prenom . ' ' . $u->nom),
+        ))->toOthers();
+
+        return response()->noContent();
     }
 
     public static function presenter(Message $m): array

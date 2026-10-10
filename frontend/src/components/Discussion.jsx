@@ -6,6 +6,8 @@ import { Link } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../AuthContext'
 import usePolling from '../usePolling'
+import useConversationTempsReel from '../conversationTempsReel'
+import useSignalerFrappe from '../signalerFrappe'
 import { libelleJour, messageErreur, tailleLisible } from '../utils'
 import { Avatar, Bouton } from './ui'
 import EmojiPicker, { HAUTEUR_PICKER, LARGEUR_PICKER } from './EmojiPicker'
@@ -37,7 +39,6 @@ export default function Discussion({ conversation, onLu, onRetour }) {
   const [erreur, setErreur] = useState('')
   const [pickerSaisieOuvert, setPickerSaisieOuvert] = useState(false)
 
-  // Picker d'emojis global (ouvert depuis la barre de réactions)
   const [pickerPour, setPickerPour] = useState(null)
   const [pickerCoords, setPickerCoords] = useState({ top: 0, left: 0 })
 
@@ -74,7 +75,25 @@ export default function Discussion({ conversation, onLu, onRetour }) {
     }
   }, [ref, utilisateur.matricule, onLu])
 
-  usePolling(charger, 3000)
+  // 📡 Écoute temps réel (remplace/complète le polling)
+  const { typingUsers } = useConversationTempsReel(
+    ref,
+    (nouveau) => {
+      setMessages((actuels) => {
+        if (actuels.some((m) => m.reference_message === nouveau.reference_message)) {
+          return actuels
+        }
+        return [...actuels, nouveau]
+      })
+    },
+    utilisateur.matricule,
+  )
+
+  // ✍️ Signal "en train d'écrire"
+  const signalerFrappe = useSignalerFrappe(ref)
+
+  // Filet de sécurité : polling ralenti (le temps réel fait le gros du travail)
+  usePolling(charger, 30000)
 
   useEffect(() => {
     const el = zone.current
@@ -154,8 +173,6 @@ export default function Discussion({ conversation, onLu, onRetour }) {
     }
   }
 
-  // La confirmation et l'effet de poussière sont gérés dans <Bulle> ;
-  // cette fonction est appelée une fois l'effet terminé.
   async function supprimer(m) {
     try {
       setMessages((actuels) => actuels.filter((x) => x.reference_message !== m.reference_message))
@@ -218,7 +235,6 @@ export default function Discussion({ conversation, onLu, onRetour }) {
       .catch(() => charger())
   }
 
-  // Ouvre le picker à côté de la bulle ciblée, borné à la fenêtre
   function ouvrirPickerEmoji(m, rect) {
     if (!rect) return
     const moi = m.expediteur?.matricule === utilisateur.matricule
@@ -328,9 +344,17 @@ export default function Discussion({ conversation, onLu, onRetour }) {
             )
           })}
         </AnimatePresence>
+
+        {/* ✍️ Indicateur "en train d'écrire" */}
+        {typingUsers.length > 0 && (
+          <p className="self-start px-2 text-xs italic text-slate-500">
+            {typingUsers.map((u) => u.nom_complet).join(', ')}
+            {typingUsers.length > 1 ? ' sont en train d’écrire…' : ' est en train d’écrire…'}
+          </p>
+        )}
       </div>
 
-      {/* ===== Picker global (portal, positionné près de la bulle) ===== */}
+      {/* ===== Picker global ===== */}
       {pickerPour && createPortal(
         <div className="fixed inset-0 z-[100]" onClick={() => setPickerPour(null)}>
           <div
@@ -347,133 +371,125 @@ export default function Discussion({ conversation, onLu, onRetour }) {
         document.body
       )}
 
-     {/* ===== Footer ===== */}
-{peutEcrire ? (
-  <footer className="border-t border-slate-200 bg-white px-4 py-3">
-    {/* Bandeau "Réponse à" ou "Modification" */}
-    {(reponseA || edition) && (
-      <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border-l-4 border-blue-500 bg-slate-100 px-3 py-1.5 text-sm text-slate-700">
-        <span className="truncate">
-          {edition
-            ? 'Modification du message'
-            : `Réponse à ${reponseA.expediteur?.prenom ?? ''} : ${(reponseA.contenu ?? 'pièce jointe').slice(0, 60)}`}
-        </span>
-        <button onClick={annulerContexte} aria-label="Annuler">
-          <X className="size-4" />
-        </button>
-      </div>
-    )}
-
-    {/* Aperçu fichiers sélectionnés */}
-    {fichiers.length > 0 && (
-      <div className="mb-2 flex flex-wrap gap-2">
-        {fichiers.map((f, i) => (
-          <button
-            key={`${f.name}-${i}`}
-            onClick={() => setFichiers(fichiers.filter((_, j) => j !== i))}
-            className="flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs hover:bg-slate-100"
-          >
-            <Paperclip className="size-3.5" />
-            {f.name} ({tailleLisible(f.size)})
-            <X className="size-3.5" />
-          </button>
-        ))}
-      </div>
-    )}
-
-    {erreur && <p className="mb-2 text-sm text-red-600" role="alert">{erreur}</p>}
-
-    {/* ✅ Zone de saisie unifiée */}
-    <div className="flex items-center gap-2">
-      {/* Champ de saisie avec trombone + emoji INTÉGRÉS */}
-      <div className="flex flex-1 items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 shadow-sm transition focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
-        
-        {/* Bouton trombone (gauche, dans le champ) */}
-        {!edition && (
-          <label
-            className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-            title="Joindre un fichier"
-          >
-            <Paperclip className="size-[18px]" />
-            <span className="sr-only">Joindre un fichier</span>
-            <input
-              type="file"
-              multiple
-              accept={TYPES_ACCEPTES}
-              onChange={ajouterFichiers}
-              hidden
-            />
-          </label>
-        )}
-
-        {/* Textarea (le champ de texte prend tout l'espace) */}
-        <textarea
-          value={texte}
-          onChange={(e) => setTexte(e.target.value)}
-          onKeyDown={surTouche}
-          placeholder="Écrivez un message…"
-          rows={1}
-          maxLength={5000}
-          className="max-h-32 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-1 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none"
-        />
-
-        {/* Bouton emoji (droite, dans le champ) */}
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() => setPickerSaisieOuvert(!pickerSaisieOuvert)}
-            className={`flex size-9 items-center justify-center rounded-full transition ${
-              pickerSaisieOuvert
-                ? 'bg-blue-50 text-blue-600'
-                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-            }`}
-            title="Emojis"
-            aria-label="Ouvrir le sélecteur d'emojis"
-          >
-            <Smile className="size-[18px]" />
-          </button>
-
-          {/* Picker d'emojis */}
-          {pickerSaisieOuvert && createPortal(
-            <div className="fixed inset-0 z-[100]" onClick={() => setPickerSaisieOuvert(false)}>
-              <div
-                className="absolute"
-                style={{ bottom: '88px', right: '16px' }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <EmojiPicker
-                  onSelection={(emoji) => setTexte((t) => t + emoji)}
-                  onFermer={() => setPickerSaisieOuvert(false)}
-                />
-              </div>
-            </div>,
-            document.body
+      {/* ===== Footer ===== */}
+      {peutEcrire ? (
+        <footer className="border-t border-slate-200 bg-white px-4 py-3">
+          {(reponseA || edition) && (
+            <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border-l-4 border-blue-500 bg-slate-100 px-3 py-1.5 text-sm text-slate-700">
+              <span className="truncate">
+                {edition
+                  ? 'Modification du message'
+                  : `Réponse à ${reponseA.expediteur?.prenom ?? ''} : ${(reponseA.contenu ?? 'pièce jointe').slice(0, 60)}`}
+              </span>
+              <button onClick={annulerContexte} aria-label="Annuler">
+                <X className="size-4" />
+              </button>
+            </div>
           )}
-        </div>
-      </div>
 
-      {/* ✅ Bouton Envoyer (bleu, séparé, avec icône avion) */}
-      <button
-        type="button"
-        onClick={envoyer}
-        disabled={envoi || (!texte.trim() && fichiers.length === 0)}
-        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-md
-                   transition hover:bg-blue-700 active:scale-95
-                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                   disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-blue-600"
-        title={edition ? 'Enregistrer' : 'Envoyer'}
-        aria-label={edition ? 'Enregistrer' : 'Envoyer'}
-      >
-        <SendHorizontal className="size-[18px]" />
-      </button>
+          {fichiers.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {fichiers.map((f, i) => (
+                <button
+                  key={`${f.name}-${i}`}
+                  onClick={() => setFichiers(fichiers.filter((_, j) => j !== i))}
+                  className="flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs hover:bg-slate-100"
+                >
+                  <Paperclip className="size-3.5" />
+                  {f.name} ({tailleLisible(f.size)})
+                  <X className="size-3.5" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {erreur && <p className="mb-2 text-sm text-red-600" role="alert">{erreur}</p>}
+
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 shadow-sm transition focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100">
+              {!edition && (
+                <label
+                  className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                  title="Joindre un fichier"
+                >
+                  <Paperclip className="size-[18px]" />
+                  <span className="sr-only">Joindre un fichier</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept={TYPES_ACCEPTES}
+                    onChange={ajouterFichiers}
+                    hidden
+                  />
+                </label>
+              )}
+
+              <textarea
+                value={texte}
+                onChange={(e) => {
+                  setTexte(e.target.value)
+                  signalerFrappe()
+                }}
+                onKeyDown={surTouche}
+                placeholder="Écrivez un message…"
+                rows={1}
+                maxLength={5000}
+                className="max-h-32 min-h-[36px] flex-1 resize-none border-0 bg-transparent px-1 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none"
+              />
+
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setPickerSaisieOuvert(!pickerSaisieOuvert)}
+                  className={`flex size-9 items-center justify-center rounded-full transition ${
+                    pickerSaisieOuvert
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                  }`}
+                  title="Emojis"
+                  aria-label="Ouvrir le sélecteur d'emojis"
+                >
+                  <Smile className="size-[18px]" />
+                </button>
+
+                {pickerSaisieOuvert && createPortal(
+                  <div className="fixed inset-0 z-[100]" onClick={() => setPickerSaisieOuvert(false)}>
+                    <div
+                      className="absolute"
+                      style={{ bottom: '88px', right: '16px' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <EmojiPicker
+                        onSelection={(emoji) => setTexte((t) => t + emoji)}
+                        onFermer={() => setPickerSaisieOuvert(false)}
+                      />
+                    </div>
+                  </div>,
+                  document.body
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={envoyer}
+              disabled={envoi || (!texte.trim() && fichiers.length === 0)}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white shadow-md
+                         transition hover:bg-blue-700 active:scale-95
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                         disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-blue-600"
+              title={edition ? 'Enregistrer' : 'Envoyer'}
+              aria-label={edition ? 'Enregistrer' : 'Envoyer'}
+            >
+              <SendHorizontal className="size-[18px]" />
+            </button>
+          </div>
+        </footer>
+      ) : (
+        <footer className="border-t border-slate-200 bg-white p-4 text-center text-sm text-slate-600">
+          Diffusion : seul le créateur peut écrire dans cette conversation.
+        </footer>
+      )}
     </div>
-  </footer>
-) : (
-  <footer className="border-t border-slate-200 bg-white p-4 text-center text-sm text-slate-600">
-    Diffusion : seul le créateur peut écrire dans cette conversation.
-  </footer>
-)}
-
-      </div>
   )
 }

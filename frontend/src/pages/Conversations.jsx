@@ -1,10 +1,10 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { MessageSquare, MessagesSquare, Paperclip, SendHorizontal, Users } from 'lucide-react'
+import { MessagesSquare } from 'lucide-react'
 import { useAuth } from '../AuthContext'
 import { useMessagerie } from '../MessagerieContext'
 import ListeConversations from '../components/ListeConversations'
 import Discussion from '../components/Discussion'
-import { Chargement, EtatVide } from '../components/ui'
+import { Chargement, EtatVide, LogoBulles } from '../components/ui'
 
 export default function Conversations() {
   const { reference } = useParams()
@@ -16,9 +16,10 @@ export default function Conversations() {
   const courante = conversations.find((c) => c.reference_conversation === selection)
 
   return (
-    <div className="flex h-full bg-white">
+    <div className="flex h-full bg-creme">
+      {/* Colonne de gauche : teintée de la couleur de la salle, elle prolonge l'onglet de la sidebar */}
       <section
-        className={`${selection ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col border-r border-slate-200 md:w-80 lg:w-96`}
+        className={`${selection ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col bg-salle md:w-80 lg:w-96`}
       >
         <ListeConversations
           conversations={conversations}
@@ -46,10 +47,12 @@ export default function Conversations() {
             <Link to="/conversations" className="text-blue-600 hover:underline">Retour</Link>
           </EtatVide>
         ) : (
-          <div className="m-auto">
-            <EtatVide icone={MessagesSquare} titre="Sélectionnez une conversation">
+          <div className="m-auto flex max-w-xs flex-col items-center gap-3 p-8 text-center">
+            <LogoBulles className="size-20" />
+            <h2 className="font-display text-2xl font-extrabold text-slate-900">Sélectionnez une conversation</h2>
+            <p className="text-sm leading-relaxed text-slate-500">
               Choisissez une conversation dans la liste ou envoyez un nouveau message.
-            </EtatVide>
+            </p>
           </div>
         )}
       </section>

@@ -2,15 +2,22 @@ graph MCD {
   graph [rankdir=LR, splines=true, nodesep=0.6, ranksep=1.1, fontname="Helvetica", pad=0.4, label="MCD - Messagerie interne securisee", labelloc=t, fontsize=20];
   node [fontname="Helvetica", fontsize=11, shape=plaintext];
   edge [fontname="Helvetica-Bold", fontsize=11, fontcolor="#b3261e", color="#555555", dir=none];
-  UTILISATEUR [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f0fe"><TR><TD BGCOLOR="#1a73e8"><FONT COLOR="white"><B>UTILISATEUR</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><U>matricule</U></TD></TR><TR><TD ALIGN="LEFT">nom</TD></TR><TR><TD ALIGN="LEFT">prenom</TD></TR><TR><TD ALIGN="LEFT">email (unique)</TD></TR><TR><TD ALIGN="LEFT">mot_de_passe</TD></TR><TR><TD ALIGN="LEFT">poste</TD></TR><TR><TD ALIGN="LEFT">statut_compte</TD></TR><TR><TD ALIGN="LEFT">derniere_connexion</TD></TR><TR><TD ALIGN="LEFT">date_creation</TD></TR></TABLE>>];
+
+  // ===== ENTITES =====
+  UTILISATEUR [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f0fe"><TR><TD BGCOLOR="#1a73e8"><FONT COLOR="white"><B>UTILISATEUR</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><U>matricule</U></TD></TR><TR><TD ALIGN="LEFT">nom</TD></TR><TR><TD ALIGN="LEFT">prenom</TD></TR><TR><TD ALIGN="LEFT">email (unique)</TD></TR><TR><TD ALIGN="LEFT">mot_de_passe</TD></TR><TR><TD ALIGN="LEFT">photo_profil</TD></TR><TR><TD ALIGN="LEFT">statut_compte (actif / en_attente / desactive)</TD></TR><TR><TD ALIGN="LEFT">derniere_connexion</TD></TR><TR><TD ALIGN="LEFT">date_creation</TD></TR></TABLE>>];
   SERVICE [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f0fe"><TR><TD BGCOLOR="#1a73e8"><FONT COLOR="white"><B>SERVICE</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><U>code_service</U></TD></TR><TR><TD ALIGN="LEFT">nom_service</TD></TR></TABLE>>];
   ROLE [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f0fe"><TR><TD BGCOLOR="#1a73e8"><FONT COLOR="white"><B>ROLE</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><U>code_role</U></TD></TR><TR><TD ALIGN="LEFT">libelle</TD></TR></TABLE>>];
+  POSTE [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f0fe"><TR><TD BGCOLOR="#1a73e8"><FONT COLOR="white"><B>POSTE</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><U>code_poste</U></TD></TR><TR><TD ALIGN="LEFT">libelle (unique)</TD></TR><TR><TD ALIGN="LEFT">description</TD></TR><TR><TD ALIGN="LEFT">actif</TD></TR><TR><TD ALIGN="LEFT">date_creation</TD></TR></TABLE>>];
   CONVERSATION [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f0fe"><TR><TD BGCOLOR="#1a73e8"><FONT COLOR="white"><B>CONVERSATION</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><U>reference_conversation</U></TD></TR><TR><TD ALIGN="LEFT">titre</TD></TR><TR><TD ALIGN="LEFT">type (DIRECT / GROUPE / DIFFUSION)</TD></TR><TR><TD ALIGN="LEFT">date_creation</TD></TR></TABLE>>];
   MESSAGE [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f0fe"><TR><TD BGCOLOR="#1a73e8"><FONT COLOR="white"><B>MESSAGE</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><U>reference_message</U></TD></TR><TR><TD ALIGN="LEFT">contenu</TD></TR><TR><TD ALIGN="LEFT">date_envoi</TD></TR><TR><TD ALIGN="LEFT">date_modification</TD></TR><TR><TD ALIGN="LEFT">est_supprime</TD></TR></TABLE>>];
+  REACTION [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f0fe"><TR><TD BGCOLOR="#1a73e8"><FONT COLOR="white"><B>REACTION</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><U>reference_reaction</U></TD></TR><TR><TD ALIGN="LEFT">emoji</TD></TR><TR><TD ALIGN="LEFT">date_reaction</TD></TR></TABLE>>];
   FICHIER [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f0fe"><TR><TD BGCOLOR="#1a73e8"><FONT COLOR="white"><B>FICHIER</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><U>reference_fichier</U></TD></TR><TR><TD ALIGN="LEFT">nom_original</TD></TR><TR><TD ALIGN="LEFT">type_mime</TD></TR><TR><TD ALIGN="LEFT">taille</TD></TR><TR><TD ALIGN="LEFT">date_upload</TD></TR></TABLE>>];
   JOURNAL_AUDIT [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f0fe"><TR><TD BGCOLOR="#1a73e8"><FONT COLOR="white"><B>JOURNAL_AUDIT</B></FONT></TD></TR><TR><TD ALIGN="LEFT"><U>reference_audit</U></TD></TR><TR><TD ALIGN="LEFT">action</TD></TR><TR><TD ALIGN="LEFT">details_action</TD></TR><TR><TD ALIGN="LEFT">date_action</TD></TR><TR><TD ALIGN="LEFT">adresse_ip</TD></TR></TABLE>>];
+
+  // ===== ASSOCIATIONS =====
   APPARTENIR [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>APPARTENIR</B></FONT></TD></TR></TABLE>>];
   AVOIR [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>AVOIR</B></FONT></TD></TR></TABLE>>];
+  OCCUPER [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>OCCUPER</B></FONT></TD></TR></TABLE>>];
   ENVOYER [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>ENVOYER</B></FONT></TD></TR></TABLE>>];
   CONTENIR [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>CONTENIR</B></FONT></TD></TR></TABLE>>];
   JOINDRE [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>JOINDRE</B></FONT></TD></TR></TABLE>>];
@@ -19,12 +26,18 @@ graph MCD {
   CREER [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>CREER</B></FONT></TD></TR></TABLE>>];
   PARTICIPER [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>PARTICIPER</B></FONT></TD></TR><TR><TD ALIGN="LEFT">date_ajout</TD></TR></TABLE>>];
   LIRE [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>LIRE</B></FONT></TD></TR><TR><TD ALIGN="LEFT">date_lecture</TD></TR></TABLE>>];
+  REAGIR [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>REAGIR</B></FONT></TD></TR></TABLE>>];
+  CONCERNER [label=<<TABLE BORDER="1" STYLE="ROUNDED" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff4e5"><TR><TD BGCOLOR="#fff4e5"><FONT COLOR="black"><B>CONCERNER</B></FONT></TD></TR></TABLE>>];
+
+  // ===== LIENS =====
   UTILISATEUR -- CREER [label="0,n"];
   CREER -- CONVERSATION [label="1,1"];
   UTILISATEUR -- APPARTENIR [label="1,1"];
   APPARTENIR -- SERVICE [label="0,n"];
   UTILISATEUR -- AVOIR [label="1,1"];
   AVOIR -- ROLE [label="0,n"];
+  UTILISATEUR -- OCCUPER [label="0,1"];
+  OCCUPER -- POSTE [label="0,n"];
   UTILISATEUR -- PARTICIPER [label="0,n"];
   PARTICIPER -- CONVERSATION [label="0,n"];
   CONVERSATION -- CONTENIR [label="0,n"];
@@ -33,6 +46,10 @@ graph MCD {
   ENVOYER -- MESSAGE [label="1,1"];
   UTILISATEUR -- LIRE [label="0,n"];
   LIRE -- MESSAGE [label="0,n"];
+  UTILISATEUR -- REAGIR [label="0,n"];
+  REAGIR -- REACTION [label="1,1"];
+  MESSAGE -- CONCERNER [label="0,n"];
+  CONCERNER -- REACTION [label="1,1"];
   MESSAGE -- JOINDRE [label="0,n"];
   JOINDRE -- FICHIER [label="1,1"];
   UTILISATEUR -- TRACER [label="0,n"];

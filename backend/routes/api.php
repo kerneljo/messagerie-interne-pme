@@ -50,6 +50,7 @@ Route::middleware(['auth:sanctum', CompteActif::class])->group(function () {
     Route::get('/conversations/{conversation}/messages', [MessageController::class, 'index']);
     Route::post('/conversations/{conversation}/messages', [MessageController::class, 'store']);
     Route::post('/conversations/{conversation}/lu', [MessageController::class, 'marquerLus']);
+    Route::post('/conversations/{conversation}/typing', [MessageController::class, 'typing']);
     Route::patch('/messages/{message}', [MessageController::class, 'update']);
     Route::post('/messages/{message}/reactions', [App\Http\Controllers\ReactionController::class, 'toggle']);
     Route::delete('/messages/{message}', [MessageController::class, 'destroy']);

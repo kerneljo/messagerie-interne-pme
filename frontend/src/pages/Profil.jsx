@@ -1,249 +1,288 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Mail, Briefcase, Building2, Shield, KeyRound,
-  Eye, EyeOff, Check, AlertTriangle, Calendar, Clock,
-  User as UserIcon, Camera, Trash2, Upload, Copy,
+  AlertTriangle, Briefcase, Building2, Calendar, Camera, Check, Clock, Copy,
+  Eye, EyeOff, KeyRound, Mail, Shield, Trash2, User as UserIcon,
+  Monitor, Moon, Sun, Palette,
 } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../AuthContext'
-import { Chargement } from '../components/ui'
+import { useTheme } from '../ThemeContext'
+import imageLaterite from '../images/laterite.png'
+import { Bouton, Chargement } from '../components/ui'
+import ConfirmationModal from '../components/ConfirmationModal'
 
 const ONGLETS = [
   { id: 'profil', libelle: 'Profil', icone: UserIcon },
   { id: 'securite', libelle: 'Sécurité', icone: KeyRound },
+  { id: 'theme', libelle: 'Thème', icone: Palette },
 ]
+
+const TAILLE_MAX_PHOTO = 5 * 1024 * 1024 //5Mo
+const TYPES_PHOTO = ['image/jpeg', 'image/png', 'image/webp']
+
+const NIVEAUX_MDP = [
+  { label: 'En attente…', couleur: 'bg-slate-300' },
+  { label: 'Faible', couleur: 'bg-piment-600' },
+  { label: 'Moyen', couleur: 'bg-mangue-500' },
+  { label: 'Bon', couleur: 'bg-indigo-400' },
+  { label: 'Excellent', couleur: 'bg-indigo-600' },
+]
+
+/* ───────────────────────────── Utilitaires ───────────────────────────── */
+
+const libellePoste = (poste) => (typeof poste === 'string' ? poste : poste?.libelle) || ''
+
+function formaterDate(iso, avecHeure = true) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    ...(avecHeure ? { hour: '2-digit', minute: '2-digit' } : {}),
+  })
+}
+
+function texteAnciennete(iso) {
+  if (!iso) return ''
+  const jours = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  if (Number.isNaN(jours) || jours < 0) return ''
+  if (jours < 1) return "Compte créé aujourd'hui"
+  if (jours < 31) return `Membre depuis ${jours} jour${jours > 1 ? 's' : ''}`
+  if (jours < 365) return `Membre depuis ${Math.floor(jours / 30)} mois`
+  const ans = Math.floor(jours / 365)
+  return `Membre depuis ${ans} an${ans > 1 ? 's' : ''}`
+}
+
+/* ───────────────────────────── Page ───────────────────────────── */
 
 export default function Profil() {
   const { rafraichir } = useAuth()
   const [chargement, setChargement] = useState(true)
+  const [echec, setEchec] = useState(false)
   const [profil, setProfil] = useState(null)
   const [onglet, setOnglet] = useState('profil')
   const [copie, setCopie] = useState(false)
 
   async function charger() {
-    setChargement(true)
     try {
       const r = await api.get('/api/profil')
       setProfil(r.data)
+      setEchec(false)
       await rafraichir?.()
     } catch {
-      setProfil(null)
+      setEchec(true)
     } finally {
       setChargement(false)
     }
   }
 
-  useEffect(() => { charger() }, [])
+  useEffect(() => {
+    charger()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  function copierEmail() {
+  async function copierEmail() {
     if (!profil?.email) return
-    navigator.clipboard.writeText(profil.email)
-    setCopie(true)
-    setTimeout(() => setCopie(false), 1500)
+    try {
+      await navigator.clipboard.writeText(profil.email)
+      setCopie(true)
+      setTimeout(() => setCopie(false), 1500)
+    } catch {
+      // presse-papiers indisponible : on ignore
+    }
   }
 
   if (chargement) return <Chargement />
 
-  if (!profil) {
+  if (echec && !profil) {
     return (
-      <div className="w-full p-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
-          <AlertTriangle className="size-10 text-red-500 mx-auto mb-3" />
+      <div className="mx-auto max-w-[1600px] p-4 md:p-6">
+        <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center">
+          <AlertTriangle className="mx-auto mb-3 size-10 text-red-500" />
           <p className="text-sm text-red-700">Impossible de charger le profil.</p>
         </div>
       </div>
     )
   }
 
+  const poste = libellePoste(profil.poste)
+  const actif = profil.statut_compte !== 'desactive'
+
   return (
-    <div className="min-h-full bg-slate-50">
-      <div className="w-full px-6 py-6">
-
-        {/* Barre supérieure */}
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Mon profil</h1>
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
-            Espace personnel
-          </span>
-        </div>
-
-        {/* Carte principale (identique à ProfilUtilisateur) */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-5">
-
-            {/* Avatar avec upload au survol */}
-            <BlocPhoto profil={profil} onChange={charger} />
-
-            {/* Infos */}
-            <div className="flex-1 min-w-0">
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                {profil.prenom} {profil.nom}
-              </h2>
-
-              <div className="mt-1 flex items-center gap-2 text-slate-500">
-                <Mail className="size-3.5 shrink-0" />
-                <span className="text-sm">{profil.email}</span>
-                <button
-                  onClick={copierEmail}
-                  className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
-                  aria-label="Copier"
-                  title="Copier l’e-mail"
-                >
-                  {copie ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                </button>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {profil.role && (
-                  <Badge icone={Shield} texte={profil.role.libelle} />
-                )}
-                {profil.poste && (
-                  <Badge icone={Briefcase} texte={profil.poste.libelle} />
-                )}
-                {profil.service && (
-                  <Badge icone={Building2} texte={profil.service.nom_service} />
-                )}
-              </div>
-            </div>
+    <div className="mx-auto max-w-[1600px] px-3 py-4 pb-10 md:px-5 md:py-6">
+      {/* ───── Carte d'identité ───── */}
+      <section className="rounded-[28px] bg-papier shadow-sm ring-1 ring-slate-200/70">
+        {/* Bandeau décoratif */}
+        <div className="relative h-32 overflow-hidden rounded-t-[28px] bg-lagon-950 sm:h-40">
+          <div aria-hidden="true" className="absolute inset-0">
+            <span className="absolute -right-8 -top-14 size-52 rotate-12 rounded-[38%] bg-piment-600/70" />
+            <span className="absolute right-44 top-12 size-32 -rotate-6 rounded-[38%] bg-mangue-400/60" />
+            <span className="absolute -bottom-20 -left-10 size-56 rounded-full bg-lagon-800" />
+            <span className="absolute left-1/3 top-6 size-20 rotate-45 rounded-[38%] bg-lagon-800/80" />
           </div>
         </div>
 
-        {/* Onglets */}
-        <div className="mt-5 border-b border-slate-200">
-          <nav className="flex gap-1 -mb-px" aria-label="Sections du profil">
-            {ONGLETS.map(({ id, libelle, icone: Icone }) => {
-              const actif = onglet === id
-              return (
-                <button
-                  key={id}
-                  onClick={() => setOnglet(id)}
-                  className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-                    actif
-                      ? 'border-indigo-600 text-indigo-700'
-                      : 'border-transparent text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  <Icone className="size-4" />
-                  {libelle}
-                </button>
-              )
-            })}
-          </nav>
-        </div>
+        {/* Contenu sous le bandeau */}
+        <div className="relative px-5 pb-10 sm:px-10 sm:pb-12">
+          <div className="absolute -top-20 left-5 sm:-top-28 sm:left-10">
+            <BlocPhoto profil={profil} />
+          </div>
 
-        {/* Contenu des onglets */}
-        <div className="mt-5">
-          {onglet === 'profil' && <OngletProfil profil={profil} />}
-          {onglet === 'securite' && <OngletSecurite />}
+          <div className="flex justify-start pt-4 pl-52 sm:pt-6 sm:pl-62">
+            <ActionsPhoto profil={profil} onChange={charger} />
+          </div>
         </div>
+      </section>
+
+      {/* ───── Onglets ───── */}
+      <div
+        role="tablist"
+        aria-label="Sections du profil"
+        className="mt-7 inline-flex rounded-2xl bg-white/70 p-1 ring-1 ring-slate-200/70"
+      >
+        {ONGLETS.map(({ id, libelle, icone: Icone }) => {
+          const selectionne = onglet === id
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`onglet-${id}`}
+              aria-selected={selectionne}
+              aria-controls={`panneau-${id}`}
+              onClick={() => setOnglet(id)}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
+                selectionne
+                  ? 'rounded-bl-[5px] bg-lagon-950 text-papier shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <Icone className="size-4" />
+              {libelle}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="mt-5" role="tabpanel" id={`panneau-${onglet}`} aria-labelledby={`onglet-${onglet}`}>
+        {onglet === 'profil' && <OngletProfil profil={profil} poste={poste} actif={actif} />}
+        {onglet === 'securite' && <OngletSecurite />}
+        {onglet === 'theme' && <OngletTheme />}
       </div>
     </div>
   )
 }
 
-/* ============================================================
-   Bloc photo avec upload au survol
-   ============================================================ */
-function BlocPhoto({ profil, onChange }) {
+/* ───────────────────────────── Photo : affichage ───────────────────────────── */
+
+function BlocPhoto({ profil }) {
+  return (
+    <div className="relative shrink-0">
+      {profil.photo_url ? (
+        <img
+          src={profil.photo_url}
+          alt={`${profil.prenom} ${profil.nom}`}
+          className="size-20 rounded-[30%] bg-papier object-cover shadow-2xl ring-4 ring-papier sm:size-52"
+        />
+      ) : (
+        <div className="flex size-40 items-center justify-center rounded-[30%] bg-mangue-300 shadow-2xl ring-4 ring-papier sm:size-56">
+          <span className="font-display text-6xl font-extrabold text-lagon-950 sm:text-7xl">
+            {profil.prenom?.[0]}
+            {profil.nom?.[0]}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ───────────────────────────── Photo : actions ───────────────────────────── */
+
+function ActionsPhoto({ profil, onChange }) {
   const [uploadEnCours, setUploadEnCours] = useState(false)
   const [erreur, setErreur] = useState('')
+  const [confirmation, setConfirmation] = useState(false)
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false)
   const inputRef = useRef(null)
 
   async function choisirFichier(e) {
     const fichier = e.target.files?.[0]
+    if (inputRef.current) inputRef.current.value = ''
     if (!fichier) return
     setErreur('')
 
-    if (fichier.size > 2 * 1024 * 1024) {
-      setErreur('L’image ne doit pas dépasser 2 Mo.')
+    if (fichier.size > TAILLE_MAX_PHOTO) {
+      setErreur("L'image ne doit pas dépasser 2 Mo.")
       return
     }
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(fichier.type)) {
+    if (!TYPES_PHOTO.includes(fichier.type)) {
       setErreur('Formats acceptés : JPG, PNG, WEBP.')
       return
     }
 
     setUploadEnCours(true)
-    const formData = new FormData()
-    formData.append('photo', fichier)
+    const donnees = new FormData()
+    donnees.append('photo', fichier)
 
     try {
-      await api.post('/api/profil/photo', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      onChange()
+      await api.post('/api/profil/photo', donnees)
+      await onChange()
     } catch (err) {
       const data = err.response?.data
-      setErreur(data?.errors?.photo?.[0] || data?.message || 'Erreur d’upload.')
+      setErreur(data?.errors?.photo?.[0] || data?.message || "Erreur lors de l'envoi.")
     } finally {
       setUploadEnCours(false)
-      if (inputRef.current) inputRef.current.value = ''
     }
   }
 
   async function supprimer() {
-    if (!confirm('Supprimer votre photo de profil ?')) return
+    setSuppressionEnCours(true)
     setErreur('')
     try {
       await api.delete('/api/profil/photo')
-      onChange()
+      setConfirmation(false)
+      await onChange()
     } catch (err) {
-      setErreur(err.response?.data?.message || 'Erreur.')
+      setConfirmation(false)
+      setErreur(err.response?.data?.message || 'Suppression impossible.')
+    } finally {
+      setSuppressionEnCours(false)
     }
   }
 
   return (
-    <div className="shrink-0 relative">
-      <div className="relative group">
-        {/* Avatar */}
-        {profil.photo_url ? (
-          <img
-            src={profil.photo_url}
-            alt={`${profil.prenom} ${profil.nom}`}
-            className="size-20 rounded-2xl object-cover ring-1 ring-slate-200"
-          />
-        ) : (
-          <div className="size-20 rounded-2xl ring-1 ring-slate-200 bg-slate-100 flex items-center justify-center">
-            <span className="text-2xl font-semibold text-slate-600">
-              {profil.prenom?.[0]}{profil.nom?.[0]}
-            </span>
-          </div>
-        )}
-
-        {/* Pastille statut */}
-        <span className="absolute -bottom-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-white">
-          <Check className="size-2.5 text-white" strokeWidth={3} />
-        </span>
-
-        {/* Overlay au survol */}
+    <div className="flex flex-col items-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploadEnCours}
-          className="absolute inset-0 rounded-2xl bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity
-                     flex items-center justify-center text-white disabled:opacity-100"
-          aria-label="Changer la photo"
-          title="Changer la photo"
+          className="inline-flex items-center gap-2.5 rounded-full bg-lagon-950 px-6 py-3 text-sm font-semibold text-papier shadow-lg transition hover:bg-lagon-800 hover:shadow-xl active:scale-[0.98] disabled:opacity-60 sm:px-7 sm:py-3.5 sm:text-base"
         >
-          {uploadEnCours ? (
-            <span className="size-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-          ) : (
-            <Camera className="size-5" />
-          )}
+          <Camera className="size-4 sm:size-5" />
+          {uploadEnCours ? 'Envoi…' : 'Changer la photo'}
         </button>
+
+        {profil.photo_url && (
+          <button
+            type="button"
+            onClick={() => setConfirmation(true)}
+            className="inline-flex items-center gap-2 rounded-full border-2 border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 active:scale-[0.98] sm:px-6 sm:py-3.5 sm:text-base"
+            aria-label="Retirer la photo"
+            title="Retirer la photo"
+          >
+            <Trash2 className="size-4 sm:size-5" />
+            Retirer
+          </button>
+        )}
       </div>
 
-      {/* Bouton supprimer discret (si photo) */}
-      {profil.photo_url && (
-        <button
-          type="button"
-          onClick={supprimer}
-          className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 shadow-sm transition"
-          aria-label="Supprimer la photo"
-          title="Supprimer la photo"
-        >
-          <Trash2 className="size-2.5" />
-        </button>
+      {erreur && (
+        <p className="max-w-[320px] text-right text-xs text-red-600 sm:text-sm" role="alert">
+          {erreur}
+        </p>
       )}
 
       <input
@@ -252,58 +291,103 @@ function BlocPhoto({ profil, onChange }) {
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={choisirFichier}
+        aria-label="Choisir une photo de profil"
       />
 
-      {erreur && (
-        <p className="absolute top-full left-0 mt-1 w-40 text-[10px] text-red-600">{erreur}</p>
-      )}
+      <ConfirmationModal
+        ouvert={confirmation}
+        onFermer={() => setConfirmation(false)}
+        onConfirmer={supprimer}
+        titre="Retirer la photo ?"
+        message="Vos initiales seront affichées à la place de votre photo de profil."
+        texteConfirmer="Retirer"
+        texteAnnuler="Annuler"
+        variant="danger"
+        enCours={suppressionEnCours}
+      />
     </div>
   )
 }
 
-/* ============================================================
-   Badge
-   ============================================================ */
-function Badge({ icone: Icone, texte }) {
+/* ───────────────────────────── Éléments communs ───────────────────────────── */
+
+function Pastille({ icone: Icone, texte, ton }) {
+  const tons = {
+    sombre: 'bg-lagon-950 text-papier',
+    clair: 'bg-slate-100 text-slate-700',
+    chaud: 'bg-mangue-300/60 text-lagon-950',
+  }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-      <Icone className="size-3" />
+    <span className={`inline-flex items-center gap-1.5 rounded-full rounded-bl-[5px] px-3 py-1 text-xs font-semibold ${tons[ton]}`}>
+      <Icone className="size-3.5" />
       {texte}
     </span>
   )
 }
 
-/* ============================================================
-   Onglet PROFIL — Informations personnelles
-   ============================================================ */
-function OngletProfil({ profil }) {
+function Fiche({ icone: Icone, titre, children }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
-      <Carte icone={UserIcon} titre="Identité">
-        <Ligne label="Prénom" valeur={profil.prenom} />
-        <Ligne label="Nom" valeur={profil.nom} />
-        <Ligne label="Adresse e-mail" valeur={profil.email} />
-        <Ligne label="Matricule" valeur={profil.matricule} mono />
-      </Carte>
+    <section className="flex h-full flex-col rounded-3xl bg-papier p-6 shadow-sm ring-1 ring-slate-200/70">
+      <header className="mb-5 flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-[30%] bg-salle text-lagon-950">
+          <Icone className="size-5" />
+        </span>
+        <h3 className="font-display text-lg font-bold text-slate-900">{titre}</h3>
+      </header>
+      <dl className="flex-1 divide-y divide-slate-200/70">{children}</dl>
+    </section>
+  )
+}
 
-      <Carte icone={Briefcase} titre="Poste">
-        <Ligne label="Intitulé" valeur={profil.poste?.libelle || '—'} />
-        <Ligne label="Service" valeur={profil.service?.nom_service || '—'} />
-        <Ligne label="Rôle" valeur={profil.role?.libelle || '—'} />
-        <Ligne label="Statut" valeur="Actif" pastilleVerte />
-      </Carte>
-
-      <Carte icone={Calendar} titre="Compte">
-        <LigneContact icone={Calendar} label="Créé le" valeur={formaterDate(profil.date_creation)} />
-        <LigneContact icone={Clock} label="Dernière connexion" valeur={formaterDate(profil.derniere_connexion)} />
-      </Carte>
+function Champ({ label, children }) {
+  return (
+    <div className="py-3 first:pt-0 last:pb-0">
+      <dt className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{label}</dt>
+      <dd className="mt-1 break-words text-[15px] font-semibold text-slate-900">{children}</dd>
     </div>
   )
 }
 
-/* ============================================================
-   Onglet SÉCURITÉ — Changement de mot de passe
-   ============================================================ */
+/* ───────────────────────────── Onglet Profil ───────────────────────────── */
+
+function OngletProfil({ profil, poste, actif }) {
+  const anciennete = texteAnciennete(profil.date_creation)
+  return (
+    <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <Fiche icone={UserIcon} titre="Identité">
+        <Champ label="Prénom">{profil.prenom}</Champ>
+        <Champ label="Nom">{profil.nom}</Champ>
+        <Champ label="Adresse e-mail">{profil.email}</Champ>
+      </Fiche>
+
+      <Fiche icone={Briefcase} titre="Poste">
+        <Champ label="Intitulé">{poste || '—'}</Champ>
+        <Champ label="Service">{profil.service?.nom_service || '—'}</Champ>
+        <Champ label="Rôle">{profil.role?.libelle || '—'}</Champ>
+        <Champ label="Statut">
+          <span className="inline-flex items-center gap-2">
+            <span className={`size-2 rounded-full ${actif ? 'bg-indigo-500' : 'bg-slate-400'}`} />
+            {actif ? 'Actif' : 'Désactivé'}
+          </span>
+        </Champ>
+      </Fiche>
+
+      <Fiche icone={Calendar} titre="Compte">
+        <Champ label="Créé le">{formaterDate(profil.date_creation)}</Champ>
+        <Champ label="Dernière connexion">
+          <span className="inline-flex items-center gap-2">
+            <Clock className="size-4 text-slate-400" />
+            {formaterDate(profil.derniere_connexion)}
+          </span>
+        </Champ>
+        {anciennete && <Champ label="Ancienneté">{anciennete}</Champ>}
+      </Fiche>
+    </div>
+  )
+}
+
+/* ───────────────────────────── Onglet Sécurité ───────────────────────────── */
+
 function OngletSecurite() {
   const [motDePasseActuel, setMotDePasseActuel] = useState('')
   const [nouveau, setNouveau] = useState('')
@@ -351,7 +435,6 @@ function OngletSecurite() {
 
   const erreurDe = (champ) => erreursChamps[champ]?.[0]
 
-  // Calcul de la force du mot de passe
   const exigences = [
     { label: '8 caractères minimum', valide: nouveau.length >= 8 },
     { label: 'Une lettre majuscule', valide: /[A-Z]/.test(nouveau) },
@@ -359,41 +442,35 @@ function OngletSecurite() {
     { label: 'Un chiffre', valide: /[0-9]/.test(nouveau) },
   ]
   const nbValides = exigences.filter((e) => e.valide).length
+  const niveau = NIVEAUX_MDP[nbValides]
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
-
-      {/* ========== Colonne principale (formulaire) ========== */}
-      <div className="lg:col-span-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-7">
-          {/* En-tête */}
-          <div className="flex items-start gap-3 mb-6">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-              <KeyRound className="size-5" />
-            </span>
-            <div>
-              <h3 className="text-base font-bold text-slate-900">Modifier le mot de passe</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Choisissez un mot de passe fort et unique.
-              </p>
-            </div>
+    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-5">
+      <section className="rounded-3xl bg-papier p-6 shadow-sm ring-1 ring-slate-200/70 sm:p-8 lg:col-span-3">
+        <header className="mb-7 flex items-start gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-[30%] bg-salle text-lagon-950">
+            <KeyRound className="size-5" />
+          </span>
+          <div>
+            <h3 className="font-display text-xl font-bold text-slate-900">Modifier le mot de passe</h3>
+            <p className="mt-0.5 text-sm text-slate-500">Choisissez un mot de passe fort et unique.</p>
           </div>
+        </header>
 
-          <form onSubmit={soumettre} className="space-y-4">
-            {/* Mot de passe actuel */}
-            <ChampMdp
-              id="mot_de_passe_actuel"
-              label="Mot de passe actuel"
-              value={motDePasseActuel}
-              onChange={setMotDePasseActuel}
-              erreur={erreurDe('mot_de_passe_actuel')}
-              voir={voir}
-              setVoir={setVoir}
-            />
+        <form onSubmit={soumettre} className="space-y-5">
+          <ChampMdp
+            id="mot_de_passe_actuel"
+            label="Mot de passe actuel"
+            value={motDePasseActuel}
+            onChange={setMotDePasseActuel}
+            erreur={erreurDe('mot_de_passe_actuel')}
+            voir={voir}
+            setVoir={setVoir}
+          />
 
-            <div className="h-px bg-slate-100 my-1"></div>
+          <div className="h-px bg-slate-200/70" />
 
-            {/* Nouveau mot de passe */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <ChampMdp
               id="nouveau_mot_de_passe"
               label="Nouveau mot de passe"
@@ -403,10 +480,9 @@ function OngletSecurite() {
               voir={voir}
               setVoir={setVoir}
               placeholder="8 caractères minimum"
-              aide="Utilisez un mélange de lettres, chiffres et symboles."
+              aide="Un mélange de lettres, chiffres et symboles."
             />
 
-            {/* Confirmation */}
             <ChampMdp
               id="nouveau_mot_de_passe_confirmation"
               label="Confirmer le nouveau mot de passe"
@@ -417,181 +493,97 @@ function OngletSecurite() {
               setVoir={setVoir}
               valide={confirmation.length > 0 && nouveau === confirmation && nouveau.length >= 8}
             />
-
-            {/* Messages */}
-            {erreur && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
-                <AlertTriangle className="size-4 text-red-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-700">{erreur}</p>
-              </div>
-            )}
-            {succes && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-                <Check className="size-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-emerald-700">{succes}</p>
-              </div>
-            )}
-
-            {/* Bouton aligné à droite */}
-            <div className="flex justify-end pt-3 border-t border-slate-100">
-              <button
-                type="submit"
-                disabled={envoi || !motDePasseActuel || !nouveau || !confirmation}
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white
-                           hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/20
-                           disabled:opacity-50 disabled:cursor-not-allowed transition shadow-sm"
-              >
-                <KeyRound className="size-4" />
-                {envoi ? 'Modification…' : 'Changer le mot de passe'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      {/* ========== Colonne latérale ========== */}
-      <div className="space-y-5">
-
-        {/* Carte : Exigences du mot de passe */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Shield className="size-4 text-slate-500" />
-            <h4 className="text-sm font-bold text-slate-900">
-              Sécurité du mot de passe
-            </h4>
           </div>
 
-          {/* Barre de progression */}
-          <div className="mb-4">
-            <div className="flex gap-1 mb-2">
+          {erreur && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-500" />
+              <p className="text-sm text-red-700">{erreur}</p>
+            </div>
+          )}
+          {succes && (
+            <div className="flex items-start gap-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3" role="status">
+              <Check className="mt-0.5 size-4 shrink-0 text-indigo-600" />
+              <p className="text-sm text-indigo-800">{succes}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end border-t border-slate-200/70 pt-5">
+            <Bouton
+              type="submit"
+              variante="primaire"
+              disabled={envoi || !motDePasseActuel || !nouveau || !confirmation}
+              className="px-5 py-2.5 font-semibold"
+            >
+              <KeyRound className="size-4" />
+              {envoi ? 'Modification…' : 'Changer le mot de passe'}
+            </Bouton>
+          </div>
+        </form>
+      </section>
+
+      <div className="space-y-5 lg:col-span-2">
+        <section className="rounded-3xl bg-papier p-6 shadow-sm ring-1 ring-slate-200/70">
+          <div className="mb-4 flex items-center gap-2">
+            <Shield className="size-4 text-slate-500" />
+            <h4 className="font-display text-base font-bold text-slate-900">Solidité du mot de passe</h4>
+          </div>
+
+          <div className="mb-5">
+            <div className="mb-2 flex gap-1.5">
               {[0, 1, 2, 3].map((i) => (
                 <span
                   key={i}
-                  className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                    i < nbValides
-                      ? nbValides === 4 ? 'bg-emerald-500'
-                        : nbValides === 3 ? 'bg-blue-500'
-                        : nbValides === 2 ? 'bg-amber-500'
-                        : 'bg-red-500'
-                      : 'bg-slate-200'
-                  }`}
-                ></span>
+                  className={`h-2 flex-1 rounded-full transition-colors duration-300 ${i < nbValides ? niveau.couleur : 'bg-slate-200'}`}
+                />
               ))}
             </div>
-            <p className="text-xs font-medium text-slate-600">
-              {nbValides === 0 ? 'En attente…'
-                : nbValides === 4 ? 'Excellent'
-                : nbValides === 3 ? 'Bon'
-                : nbValides === 2 ? 'Moyen'
-                : 'Faible'}
-            </p>
+            <p className="text-xs font-semibold text-slate-600" aria-live="polite">{niveau.label}</p>
           </div>
 
-          {/* Liste des exigences */}
           <ul className="space-y-2.5">
-            {exigences.map((e, i) => (
-              <li key={i} className="flex items-center gap-2 text-xs">
-                <span className={`flex size-4 shrink-0 items-center justify-center rounded-full transition-colors ${
-                  e.valide ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                }`}>
-                  <Check className="size-2.5" strokeWidth={3} />
+            {exigences.map((e) => (
+              <li key={e.label} className="flex items-center gap-2.5 text-xs">
+                <span
+                  className={`flex size-5 shrink-0 items-center justify-center rounded-[30%] transition-colors ${
+                    e.valide ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                  }`}
+                >
+                  <Check className="size-3" strokeWidth={3} />
                 </span>
-                <span className={e.valide ? 'text-slate-700 font-medium' : 'text-slate-500'}>
-                  {e.label}
-                </span>
+                <span className={e.valide ? 'font-semibold text-slate-800' : 'text-slate-500'}>{e.label}</span>
               </li>
             ))}
           </ul>
-        </div>
+        </section>
 
-        {/* Carte : Conseil de sécurité */}
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-          <div className="flex items-start gap-3">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
-              <AlertTriangle className="size-4" />
-            </span>
-            <div>
-              <h4 className="text-sm font-bold text-amber-900">
-                Bon réflexe
-              </h4>
-              <p className="mt-1 text-xs text-amber-800 leading-relaxed">
-                Après avoir changé votre mot de passe, pensez à vous déconnecter
-                des autres appareils si votre compte a été compromis.
-              </p>
-            </div>
+        <section className="flex items-start gap-3 rounded-3xl bg-mangue-300/50 p-5 ring-1 ring-mangue-400/40">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-[30%] bg-mangue-400 text-lagon-950">
+            <AlertTriangle className="size-4" />
+          </span>
+          <div>
+            <h4 className="font-display text-sm font-bold text-lagon-950">Bon réflexe</h4>
+            <p className="mt-1 text-xs leading-relaxed text-lagon-950/80">
+              Après avoir changé votre mot de passe, pensez à vous déconnecter des autres appareils
+              si votre compte a été compromis.
+            </p>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   )
 }
 
-
-/* ============================================================
-   Carte (hauteur 100%)
-   ============================================================ */
-function Carte({ icone: Icone, titre, children }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 h-full flex flex-col">
-      <div className="flex items-center gap-3 mb-5">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-          <Icone className="size-4" />
-        </span>
-        <h3 className="text-base font-bold text-slate-900">{titre}</h3>
-      </div>
-      <div className="space-y-0 flex-1">{children}</div>
-    </div>
-  )
-}
-
-/* ============================================================
-   Ligne (label gauche / valeur gauche alignée)
-   ============================================================ */
-function Ligne({ label, valeur, mono, pastilleVerte }) {
-  if (pastilleVerte) {
-    return (
-      <div className="flex items-center gap-3 py-2.5 border-b border-slate-100 last:border-0">
-        <span className="w-32 shrink-0 text-sm text-slate-600">{label}</span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-          <span className="size-1.5 rounded-full bg-emerald-500"></span>
-          {valeur}
-        </span>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-slate-100 last:border-0">
-      <span className="w-32 shrink-0 text-sm text-slate-600">{label}</span>
-      <span className={`text-sm font-semibold text-slate-900 truncate ${mono ? 'font-mono' : ''}`}>
-        {valeur}
-      </span>
-    </div>
-  )
-}
-
-function LigneContact({ icone: Icone, label, valeur }) {
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-slate-100 last:border-0">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-        <Icone className="size-3.5" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-        <p className="text-sm font-semibold text-slate-900 truncate">{valeur}</p>
-      </div>
-    </div>
-  )
-}
-
-/* ============================================================
-   Champ mot de passe
-   ============================================================ */
 function ChampMdp({ id, label, value, onChange, erreur, voir, setVoir, placeholder, valide, aide }) {
+  const bordure = erreur
+    ? 'border-red-300 focus:border-red-400 focus:ring-red-500/15'
+    : valide
+      ? 'border-indigo-300 focus:border-indigo-400 focus:ring-indigo-500/15'
+      : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/15'
+
   return (
     <div>
-      {/* Label rapproché du champ */}
-      <label htmlFor={id} className="block text-sm font-medium text-slate-700 mb-1.5">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-slate-700">
         {label}
       </label>
       <div className="relative">
@@ -603,27 +595,20 @@ function ChampMdp({ id, label, value, onChange, erreur, voir, setVoir, placehold
           placeholder={placeholder}
           autoComplete="new-password"
           required
-          className={`w-full pl-4 pr-11 py-2.5 rounded-lg border bg-white text-sm text-slate-900 placeholder-slate-400
-                     focus:outline-none focus:ring-4 transition-all
-                     ${erreur
-                       ? 'border-red-300 focus:border-red-400 focus:ring-red-500/15'
-                       : valide
-                         ? 'border-emerald-300 focus:border-emerald-400 focus:ring-emerald-500/15'
-                         : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/15'}`}
+          className={`w-full rounded-xl border bg-white py-3 pl-4 pr-12 text-sm text-slate-900 transition-all placeholder:text-slate-400 focus:outline-none focus:ring-4 ${bordure}`}
         />
         <button
           type="button"
           onClick={() => setVoir(!voir)}
-          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-indigo-600 transition-colors"
-          aria-label={voir ? 'Masquer' : 'Afficher'}
+          className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 transition-colors hover:text-indigo-600"
+          aria-label={voir ? 'Masquer les mots de passe' : 'Afficher les mots de passe'}
           title={voir ? 'Masquer' : 'Afficher'}
         >
           {voir ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
         </button>
       </div>
-      {/* Texte d'aide ou d'erreur */}
       {erreur ? (
-        <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+        <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
           <AlertTriangle className="size-3" />
           {erreur}
         </p>
@@ -634,15 +619,167 @@ function ChampMdp({ id, label, value, onChange, erreur, voir, setVoir, placehold
   )
 }
 
-/* ============================================================
-   Utilitaires
-   ============================================================ */
-function formaterDate(iso) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (isNaN(d)) return '—'
-  return d.toLocaleDateString('fr-FR', {
-    day: 'numeric', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
+/* ───────────────────────────── Onglet Thème ───────────────────────────── */
+
+const THEMES_DISPONIBLES = [
+  {
+    id: 'laterite',
+    nom: 'Latérite',
+    description: 'Terres rouges de Madagascar',
+    icone: Sun,
+    image: imageLaterite,
+    couleurs: {
+      fond: '#f6eedf',
+      sidebar: '#0c2b2a',
+      bulleRecue: '#ffffff',
+      bulleEnvoyee: '#d1451f',
+    },
+  },
+  {
+    id: 'dark',
+    nom: 'Basalte',
+    description: 'Nuit profonde, accents chauds',
+    icone: Moon,
+    couleurs: {
+      fond: '#0d0d0d',
+      sidebar: '#000000',
+      bulleRecue: '#2a2a2a',
+      bulleEnvoyee: '#e8622e',
+    },
+  },
+  {
+    id: 'clair',
+    nom: 'Calcaire',
+    description: 'Blanc net et contrasté',
+    icone: Monitor,
+    couleurs: {
+      fond: '#ffffff',
+      sidebar: '#1a1a1a',
+      bulleRecue: '#f5f5f5',
+      bulleEnvoyee: '#d1451f',
+    },
+  },
+]
+
+function OngletTheme() {
+  const { theme, setTheme } = useTheme()
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <h3 className="font-display text-xl font-bold text-slate-900">Apparence</h3>
+      </header>
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {THEMES_DISPONIBLES.map((t) => (
+          <CarteTheme
+            key={t.id}
+            theme={t}
+            selectionne={theme === t.id}
+            onSelectionner={() => setTheme(t.id)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CarteTheme({ theme, selectionne, onSelectionner }) {
+  const Icone = theme.icone
+  const c = theme.couleurs
+
+  return (
+    <button
+      type="button"
+      onClick={onSelectionner}
+      aria-pressed={selectionne}
+      className={`group relative overflow-hidden rounded-3xl bg-papier p-3 text-left shadow-sm transition-shadow duration-300 ${
+        selectionne
+          ? 'shadow-xl ring-2 ring-piment-600'
+          : 'ring-1 ring-slate-200/70 hover:shadow-lg hover:ring-slate-300'
+      }`}
+    >
+      <div className="mb-4 overflow-hidden rounded-2xl ring-1 ring-black/10">
+        <div className="aspect-[16/10] overflow-hidden bg-slate-100">
+          {theme.image ? (
+            <img
+              src={theme.image}
+              alt={`Aperçu du thème ${theme.nom}`}
+              loading="lazy"
+              className="size-full object-cover object-top"
+            />
+          ) : (
+            <ApercuMockup couleurs={c} />
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-start gap-2.5 px-1">
+        <span
+          className="flex size-8 shrink-0 items-center justify-center rounded-xl"
+          style={{ backgroundColor: c.sidebar, color: '#fff' }}
+        >
+          <Icone className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-slate-900">{theme.nom}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{theme.description}</p>
+        </div>
+      </div>
+
+      {selectionne && (
+        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-piment-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg">
+          <Check className="size-3" strokeWidth={3} />
+          Actif
+        </span>
+      )}
+    </button>
+  )
+}
+/* Mockup dessiné (fallback pour les thèmes sans image) */
+function ApercuMockup({ couleurs }) {
+  const c = couleurs
+  return (
+    <div className="flex size-full" style={{ backgroundColor: c.fond }}>
+      {/* Sidebar */}
+      <div
+        className="flex w-1/4 flex-col gap-2 p-2"
+        style={{ backgroundColor: c.sidebar }}
+      >
+        <div className="flex items-center gap-1">
+          <div className="size-2.5 rounded-full" style={{ backgroundColor: c.bulleEnvoyee }} />
+          <div className="h-1.5 w-8 rounded-full bg-white/40" />
+        </div>
+        <div className="mt-2 space-y-1.5">
+          <div className="h-2 w-full rounded-sm bg-white/25" />
+          <div className="h-2 w-4/5 rounded-sm bg-white/15" />
+          <div className="h-2 w-3/4 rounded-sm bg-white/15" />
+        </div>
+        <div className="mt-auto flex items-center gap-1.5">
+          <div className="size-4 rounded-full" style={{ backgroundColor: c.bulleEnvoyee }} />
+          <div className="h-1.5 w-8 rounded-full bg-white/30" />
+        </div>
+      </div>
+
+      {/* Zone messages */}
+      <div className="flex flex-1 flex-col justify-end gap-1.5 p-2.5">
+        <div
+          className="h-3 w-3/5 self-start rounded-full"
+          style={{ backgroundColor: c.bulleRecue }}
+        />
+        <div
+          className="h-3 w-2/5 self-start rounded-full"
+          style={{ backgroundColor: c.bulleRecue }}
+        />
+        <div
+          className="h-3 w-2/5 self-end rounded-full"
+          style={{ backgroundColor: c.bulleEnvoyee }}
+        />
+        <div
+          className="h-3 w-1/2 self-end rounded-full"
+          style={{ backgroundColor: c.bulleEnvoyee }}
+        />
+      </div>
+    </div>
+  )
 }
