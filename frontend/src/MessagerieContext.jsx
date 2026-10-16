@@ -20,7 +20,7 @@ export function MessagerieProvider({ children }) {
     }
   }, [])
 
-  usePolling(recharger, 5000)
+  usePolling(recharger, 60000)
 
   const conversationsNonLues = useMemo(() => conversations.filter((c) => c.non_lus > 0), [conversations])
   const nonLus = useMemo(() => conversations.reduce((total, c) => total + c.non_lus, 0), [conversations])

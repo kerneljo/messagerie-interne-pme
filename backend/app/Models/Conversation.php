@@ -13,7 +13,8 @@ class Conversation extends Model
     protected $primaryKey = 'reference_conversation';
     public $timestamps = false;
 
-    protected $fillable = ['titre', 'type', 'matricule_createur'];
+    protected $fillable = ['titre', 'type', 'photo_url', 'matricule_createur'];
+    //                                      ^^^^^^^^^^ AJOUT
 
     protected function casts(): array
     {
@@ -30,7 +31,8 @@ class Conversation extends Model
     {
         return $this->belongsToMany(
             Utilisateur::class, 'participant', 'reference_conversation', 'matricule'
-        )->withPivot('date_ajout');
+        )->withPivot('date_ajout', 'role');
+        //                    ^^^^^^^^^^^^^^^^^ AJOUT
     }
 
     /** CONTENIR */

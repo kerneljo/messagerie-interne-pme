@@ -7,13 +7,32 @@ use App\Models\Utilisateur;
 
 class MessagePolicy
 {
+    /** Modifier : seul l'auteur, et seulement tant qu'il fait partie de la conversation. */
     public function modifier(Utilisateur $u, Message $m): bool
     {
-        return (int) $m->matricule_expediteur === (int) $u->matricule;
+        return $this->estAuteurEncoreParticipant($u, $m);
     }
 
+    /** Supprimer : même règle que la modification. */
     public function supprimer(Utilisateur $u, Message $m): bool
     {
-        return (int) $m->matricule_expediteur === (int) $u->matricule;
+        return $this->estAuteurEncoreParticipant($u, $m);
+    }
+
+    /** Suivre qui a lu et pris en compte un message : réservé à son expéditeur. */
+    public function suivre(Utilisateur $u, Message $m): bool
+    {
+        return $this->estAuteurEncoreParticipant($u, $m);
+    }
+
+    private function estAuteurEncoreParticipant(Utilisateur $u, Message $m): bool
+    {
+        if ((int) $m->matricule_expediteur !== (int) $u->matricule) {
+            return false;
+        }
+
+        $conversation = $m->conversation;
+
+        return $conversation !== null && $conversation->aParticipant((int) $u->matricule);
     }
 }

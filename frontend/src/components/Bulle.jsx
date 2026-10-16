@@ -10,28 +10,39 @@ import EffetPoussiere from './EffetPoussiere'
 import ApercuImages from './ApercuImages'
 import ConfirmationModal from './ConfirmationModal'
 
-const REACTIONS_RAPIDES = ['👍', '❤️', '😂', '🔥', '😮', '😢']
+const REACTIONS_RAPIDES = ['👍', '❤', '😂', '🔥', '😮', '😢']
 const LARGEUR_MENU = 208
 const MARGE_COTE = 24
 const MARGE_HAUT = 16
 const MARGE_BAS = 64
+// Sous cette distance du haut de l'écran (en-têtes compris), la barre d'actions s'affiche sous la bulle
+const ESPACE_MIN_AU_DESSUS = 150
+
+/* Message composé uniquement de 1 à 3 emojis : affiché en grand, sans bulle */
+const RE_EMOJI_SEUL = /^(?:\p{Extended_Pictographic}(?:\uFE0F|\u200D|\p{Emoji_Modifier})*){1,3}$/u
 
 /* ============================================================
-   Couleurs de la poussière (reprennent celles des bulles)
-   Bulle envoyée : blue-600 #2563eb / Bulle reçue : blanc + contour slate
+   Palette des bulles
+   Envoyé : vert menthe  #E1F7D5 / texte #1F2937
+   Reçu   : blanc        #FFFFFF / texte #1F2937
+   Valeurs directes : elles ne dépendent pas du thème de index.css.
    ============================================================ */
+const STYLE_BULLE_MOI = 'bg-[#E1F7D5] text-[#1F2937] ring-1 ring-[#BFE5B0]'
+const STYLE_BULLE_AUTRE = 'bg-white text-[#1F2937] ring-1 ring-black/5'
+
+/* Couleurs de la poussière : mêmes teintes que les bulles */
 const COULEURS_MOI = [
-  '#2563eb', '#2563eb', '#2563eb',
-  '#3b82f6', '#3b82f6',
-  '#60a5fa',
-  '#bfdbfe',
+  '#E1F7D5', '#E1F7D5', '#E1F7D5',
+  '#BFE5B0', '#BFE5B0',
+  '#8FCB82',
+  '#2d5a54',
   '#ffffff',
 ]
 const COULEURS_AUTRE = [
-  '#f1f5f9', '#e2e8f0', '#e2e8f0',
-  '#cbd5e1', '#cbd5e1',
-  '#94a3b8',
-  '#64748b',
+  '#ffffff', '#ffffff', '#ffffff',
+  '#f1f5f9', '#f1f5f9',
+  '#e2e8f0',
+  '#cbd5e1',
 ]
 
 /* ============================================================
@@ -60,26 +71,28 @@ export function BulleAnimee({ children }) {
 }
 
 /* ============================================================
-   Barre de réactions rapides
+   Barre d'actions au survol : réactions rapides, plus d'emojis et menu « ⋯ »
    ============================================================ */
-function BarreReactions({ onReagir, position = 'above', align = 'right' }) {
+function BarreActions({ onReagir, onPlusEmojis, onMenu, menuOuvert, position, align }) {
   const estAuDessus = position === 'above'
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9, y: estAuDessus ? 4 : -4 }}
+      role="toolbar"
+      aria-label="Actions du message"
+      initial={{ opacity: 0, scale: 0.92, y: estAuDessus ? 4 : -4 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, y: estAuDessus ? 4 : -4 }}
+      exit={{ opacity: 0, scale: 0.92, y: estAuDessus ? 4 : -4 }}
       transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
       className={`absolute z-30 flex items-center gap-0.5 rounded-full border border-slate-300 bg-white px-1.5 py-1 shadow-lg shadow-slate-900/10 ${
-        estAuDessus ? '-top-12' : 'top-full mt-2'
+        estAuDessus ? '-top-11' : 'top-full mt-1'
       } ${align === 'right' ? 'right-0' : 'left-0'}`}
     >
       {REACTIONS_RAPIDES.map((emoji) => (
         <button
           key={emoji}
           type="button"
-          onClick={() => onReagir(emoji, false)}
+          onClick={() => onReagir(emoji)}
           className="flex size-8 items-center justify-center rounded-full text-base transition-transform hover:scale-125 hover:bg-slate-100 active:scale-95 focus-visible:outline-2 focus-visible:outline-blue-700"
           title={`Réagir ${emoji}`}
           aria-label={`Réagir avec ${emoji}`}
@@ -87,22 +100,39 @@ function BarreReactions({ onReagir, position = 'above', align = 'right' }) {
           {emoji}
         </button>
       ))}
-      <div className="mx-0.5 h-5 w-px bg-slate-300" aria-hidden="true"></div>
+
+      <div className="mx-0.5 h-5 w-px bg-slate-300" aria-hidden="true" />
+
       <button
         type="button"
-        onClick={() => onReagir(null, true)}
+        onClick={onPlusEmojis}
         className="flex size-8 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-blue-700"
         title="Plus d'emojis"
         aria-label="Plus d'emojis"
       >
         <Smile className="size-4" />
       </button>
+
+      <button
+        type="button"
+        data-bouton-menu
+        onClick={onMenu}
+        className={`flex size-8 items-center justify-center rounded-full transition focus-visible:outline-2 focus-visible:outline-blue-700 ${
+          menuOuvert ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+        }`}
+        title="Plus d'actions"
+        aria-label="Options du message"
+        aria-haspopup="menu"
+        aria-expanded={menuOuvert}
+      >
+        <MoreHorizontal className="size-4" />
+      </button>
     </motion.div>
   )
 }
 
 /* ============================================================
-   Réactions collées à la bulle
+   Réactions : pastilles qui chevauchent le bas de la bulle
    ============================================================ */
 function ReactionsAffichees({ reactions, moi, onToggle }) {
   if (!reactions || reactions.length === 0) return null
@@ -111,7 +141,7 @@ function ReactionsAffichees({ reactions, moi, onToggle }) {
   const masquees = reactions.length - visible.length
 
   return (
-    <div className={`relative z-10 -mt-2 flex flex-wrap gap-1 ${moi ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
+    <div className={`relative z-10 -mt-2 flex flex-wrap gap-1 pb-1 ${moi ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
       {visible.map((r) => (
         <button
           key={r.emoji}
@@ -119,7 +149,7 @@ function ReactionsAffichees({ reactions, moi, onToggle }) {
           onClick={() => onToggle?.(r.emoji)}
           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs shadow-sm transition-all hover:scale-105 focus-visible:outline-2 focus-visible:outline-blue-700 ${
             r.moi
-              ? 'border-blue-400 bg-blue-50 text-blue-800 ring-1 ring-blue-100'
+              ? 'border-indigo-400 bg-indigo-50 text-indigo-800 ring-1 ring-indigo-100'
               : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
           }`}
           title={r.moi ? 'Retirer ma réaction' : `Réagir avec ${r.emoji}`}
@@ -205,7 +235,8 @@ function MenuMessage({ x, y, moi, onRepondre, onModifier, onCopier, onSupprimer,
       <div className="py-1">
         <ItemMenu icone={Reply} label="Répondre" onClick={() => { onRepondre(); onFermer() }} />
         {moi && <ItemMenu icone={Pencil} label="Modifier" onClick={() => { onModifier(); onFermer() }} />}
-        <ItemMenu icone={Pin} label="Épingler" onClick={onFermer} />
+        {/* Fonction pas encore disponible : affichée grisée plutôt qu'un bouton qui ne fait rien */}
+        <ItemMenu icone={Pin} label="Épingler (bientôt)" desactive />
         <ItemMenu icone={Copy} label="Copier le texte" onClick={() => { onCopier(); onFermer() }} />
         {moi && (
           <>
@@ -219,52 +250,77 @@ function MenuMessage({ x, y, moi, onRepondre, onModifier, onCopier, onSupprimer,
   )
 }
 
-function ItemMenu({ icone: Icone, label, onClick, danger }) {
+function ItemMenu({ icone: Icone, label, onClick, danger, desactive }) {
   return (
     <button
       type="button"
       role="menuitem"
       onClick={onClick}
-      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-700 ${
-        danger ? 'text-red-700 hover:bg-red-50' : 'text-slate-800 hover:bg-slate-100'
+      disabled={desactive}
+      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed ${
+        desactive
+          ? 'text-slate-500'
+          : danger
+            ? 'text-red-700 hover:bg-red-50'
+            : 'text-slate-800 hover:bg-slate-100'
       }`}
     >
-      <Icone className={`size-4 ${danger ? 'text-red-600' : 'text-slate-600'}`} />
+      <Icone className={`size-4 ${desactive ? 'text-slate-400' : danger ? 'text-red-600' : 'text-slate-600'}`} />
       <span className="font-medium">{label}</span>
     </button>
   )
 }
 
 /* ============================================================
-   Heure + statut, affichés sous la bulle
+   Heure + coches, à l'intérieur de la bulle (en bas à droite)
+   surFond = true : pour un message sans bulle (emoji seul), petite pastille lisible sur le motif
+   Le texte du statut ("Envoyé", "Lu", "Lu par 2/3") reste dans le title et pour les lecteurs d'écran
    ============================================================ */
-function MetaMessage({ m, moi, statut }) {
+function MetaMessage({ m, moi, statut, surFond = false }) {
   const lu = m.nb_lecteurs > 0
 
   return (
-    // w-0 + min-w-full : la ligne prend la largeur de la bulle sans jamais l'élargir
-    <div
-      className={`mt-1 flex w-0 min-w-full items-center gap-1.5 whitespace-nowrap px-1 text-[11px] text-slate-600 ${
-        moi ? 'justify-end' : 'justify-start'
+    <span
+      className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] leading-none ${
+        surFond
+          ? 'rounded-full bg-white/85 px-1.5 py-0.5 text-slate-600 shadow-sm backdrop-blur-sm'
+          : 'text-slate-500'
       }`}
     >
-      <span>{heureSeule(m.date_envoi)}{m.date_modification && ' · modifié'}</span>
+      <span>
+        {heureSeule(m.date_envoi)}
+        {m.date_modification && ' · modifié'}
+      </span>
       {moi && (
-        <span className="flex items-center gap-0.5">
+        <span title={statut} className="inline-flex">
           {lu
-            ? <CheckCheck className="size-3.5 text-blue-700" aria-hidden="true" />
-            : <Check className="size-3.5" aria-hidden="true" />}
-          <span>{statut}</span>
+            ? <CheckCheck className="size-4 text-sky-600" aria-hidden="true" />
+            : <Check className="size-4 text-slate-400" aria-hidden="true" />}
+          <span className="sr-only">{statut}</span>
         </span>
       )}
-    </div>
+    </span>
   )
 }
 
 /* ============================================================
    Bulle d'un message
+
+   Props de regroupement (optionnelles, true par défaut) :
+   - premierDuGroupe : premier message d'une série du même expéditeur
+                       → coin « queue » + nom de l'expéditeur (groupes)
    ============================================================ */
-export default function Bulle({ m, moi, conversation, onRepondre, onModifier, onSupprimer, onReagir, onOuvrirEmoji }) {
+export default function Bulle({
+  m,
+  moi,
+  conversation,
+  premierDuGroupe = true,
+  onRepondre,
+  onModifier,
+  onSupprimer,
+  onReagir,
+  onOuvrirEmoji,
+}) {
   const autres = conversation.participants.length - 1
   const statut =
     m.nb_lecteurs === 0
@@ -285,19 +341,22 @@ export default function Bulle({ m, moi, conversation, onRepondre, onModifier, on
   const menuOuvert = menu !== null
   const fermerMenu = useCallback(() => setMenu(null), [])
 
-  // Largeur adaptative selon le contenu
-  const estLongTexte = m.contenu && m.contenu.length > 200
-  const contientFichier = m.fichiers && m.fichiers.length > 0
-  const largeurMax = estLongTexte
-    ? 'md:max-w-[50%]'
-    : contientFichier
-      ? 'md:max-w-[65%]'
-      : 'md:max-w-[55%]'
+  const contientFichier = !!(m.fichiers && m.fichiers.length > 0)
+  const contenu = m.contenu?.trim() ?? ''
 
-  function surSurvol() {
+  // Emoji seul : grand, sans bulle colorée
+  const emojiSeul = contenu !== '' && !contientFichier && !m.reponse_a && RE_EMOJI_SEUL.test(contenu)
+
+  // Texte seul : l'heure se place dans le coin de la dernière ligne
+  const metaDansTexte = contenu !== '' && !contientFichier
+
+  // Place réservée à la fin du texte pour que l'heure ne le recouvre jamais
+  const largeurReservee = (moi ? 76 : 44) + (m.date_modification ? 52 : 0)
+
+  function afficherBarre() {
     if (bulleRef.current) {
       const rect = bulleRef.current.getBoundingClientRect()
-      setPositionBarre(rect.top >= 380 ? 'above' : 'below')
+      setPositionBarre(rect.top >= ESPACE_MIN_AU_DESSUS ? 'above' : 'below')
     }
     setBarreVisible(true)
   }
@@ -305,7 +364,6 @@ export default function Bulle({ m, moi, conversation, onRepondre, onModifier, on
   function ouvrirMenuDepuisBouton(e) {
     if (menuOuvert) return fermerMenu()
     const rect = e.currentTarget.getBoundingClientRect()
-    setBarreVisible(false)
     setMenu({
       x: moi ? rect.right - LARGEUR_MENU : rect.left,
       y: rect.bottom + 6,
@@ -332,7 +390,24 @@ export default function Bulle({ m, moi, conversation, onRepondre, onModifier, on
     setRectPoussiere(el.getBoundingClientRect())
   }
 
+  // Écrans tactiles : pas de survol, un appui sur la bulle affiche ou masque la barre d'actions
+  function surAppui() {
+    if (window.matchMedia?.('(hover: none)').matches) {
+      barreVisible ? setBarreVisible(false) : afficherBarre()
+    }
+  }
+
+  function surMenuContextuel(e) {
+    e.preventDefault()
+    setBarreVisible(false)
+    setMenu({ x: e.clientX, y: e.clientY })
+  }
+
   const dissolution = rectPoussiere !== null
+  const barreAffichee = (barreVisible || menuOuvert) && !dissolution
+
+  // Coin « queue » sur le premier message d'une série
+  const coinQueue = premierDuGroupe ? (moi ? 'rounded-tr-md' : 'rounded-tl-md') : ''
 
   return (
     <div
@@ -343,92 +418,106 @@ export default function Bulle({ m, moi, conversation, onRepondre, onModifier, on
         pointerEvents: dissolution ? 'none' : undefined,
       }}
     >
-      {/* Bouton ⋯ : visible au survol ET au focus clavier */}
-      <div
-        className={`flex shrink-0 items-center self-center transition-opacity duration-150 ${
-          menuOuvert ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
-        } ${moi ? 'order-1' : 'order-2'}`}
-      >
-        <button
-          type="button"
-          data-bouton-menu
-          onClick={ouvrirMenuDepuisBouton}
-          className="flex size-8 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-300 transition-all hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-blue-700"
-          aria-label="Options du message"
-          aria-haspopup="menu"
-          aria-expanded={menuOuvert}
-        >
-          <MoreHorizontal className="size-4" />
-        </button>
-      </div>
-
-      {/* Wrapper bulle + réactions + heure */}
+      {/* Wrapper bulle + réactions (la barre d'actions y est ancrée) */}
       <div
         ref={bulleRef}
-        className={`relative max-w-[85%] ${largeurMax} ${moi ? 'order-2' : 'order-1'}`}
-        onMouseEnter={surSurvol}
+        tabIndex={0}
+        className="relative max-w-[85%] rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 md:max-w-[65%]"
+        onMouseEnter={afficherBarre}
         onMouseLeave={() => setBarreVisible(false)}
+        onFocus={afficherBarre}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget)) setBarreVisible(false)
+        }}
       >
-        {/* Barre de réactions rapides */}
         <AnimatePresence>
-          {barreVisible && !menuOuvert && !dissolution && (
-            <BarreReactions
-              onReagir={(emoji, ouvrirPicker) => {
-                if (ouvrirPicker) {
-                  const rect = bulleRef.current?.getBoundingClientRect()
-                  onOuvrirEmoji?.(m, rect)
-                } else {
-                  onReagir?.(m, emoji)
-                }
+          {barreAffichee && (
+            <BarreActions
+              onReagir={(emoji) => {
+                onReagir?.(m, emoji)
                 setBarreVisible(false)
               }}
+              onPlusEmojis={() => {
+                const rect = bulleRef.current?.getBoundingClientRect()
+                onOuvrirEmoji?.(m, rect)
+                setBarreVisible(false)
+              }}
+              onMenu={ouvrirMenuDepuisBouton}
+              menuOuvert={menuOuvert}
               position={positionBarre}
               align={moi ? 'right' : 'left'}
             />
           )}
         </AnimatePresence>
 
-        {/* Bulle visuelle : uniquement le contenu */}
-        <div
-          ref={bulleVisuelleRef}
-          onContextMenu={(e) => {
-            e.preventDefault()
-            setBarreVisible(false)
-            setMenu({ x: e.clientX, y: e.clientY })
-          }}
-          className={`rounded-2xl px-4 py-2.5 shadow-sm ring-1 transition-shadow hover:shadow-md ${
-            moi
-              ? 'rounded-br-md bg-blue-600 text-white ring-blue-700/30'
-              : 'rounded-bl-md bg-white text-slate-900 ring-slate-300'
-          }`}
-        >
-          {!moi && conversation.type !== 'DIRECT' && (
-            <p className="mb-1 text-xs font-semibold text-blue-700">
-              {m.expediteur?.prenom} {m.expediteur?.nom}
-            </p>
-          )}
-
-          {m.reponse_a && (
-            <div className={`mb-2 rounded-lg border-l-2 px-2.5 py-1.5 text-xs ${
-              moi ? 'border-white/70 bg-blue-900/40' : 'border-blue-600 bg-slate-100'
-            }`}>
-              <p className={`text-[10px] font-bold uppercase tracking-wider ${moi ? 'text-blue-100' : 'text-blue-700'}`}>
-                {m.reponse_a.expediteur}
+        {emojiSeul ? (
+          /* ---------- Emoji seul : grand, sans bulle ---------- */
+          <div
+            ref={bulleVisuelleRef}
+            onClick={surAppui}
+            onContextMenu={surMenuContextuel}
+            className={`flex flex-col gap-1 ${moi ? 'items-end' : 'items-start'}`}
+          >
+            <p className="text-[40px] leading-none">{contenu}</p>
+            <MetaMessage m={m} moi={moi} statut={statut} surFond />
+          </div>
+        ) : (
+          /* ---------- Bulle classique ---------- */
+          <div
+            ref={bulleVisuelleRef}
+            onClick={surAppui}
+            onContextMenu={surMenuContextuel}
+            className={`relative rounded-2xl px-3.5 py-2 shadow-sm transition-shadow duration-200 hover:shadow-md ${coinQueue} ${
+              moi ? STYLE_BULLE_MOI : STYLE_BULLE_AUTRE
+            }`}
+          >
+            {!moi && premierDuGroupe && conversation.type !== 'DIRECT' && (
+              <p className="mb-0.5 text-xs font-semibold text-[#2d5a54]">
+                {m.expediteur?.prenom} {m.expediteur?.nom}
               </p>
-              <p className={`mt-0.5 truncate ${moi ? 'text-blue-50' : 'text-slate-700'}`}>
-                {m.reponse_a.apercu}
+            )}
+
+            {m.reponse_a && (
+              <div
+                className={`mb-2 rounded-lg border-l-4 px-2.5 py-1.5 text-xs ${
+                  moi ? 'border-[#2d5a54] bg-black/5' : 'border-[#2d5a54] bg-[#E6EEEA]'
+                }`}
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#2d5a54]">
+                  {m.reponse_a.expediteur}
+                </p>
+                <p className="mt-0.5 truncate text-slate-700">{m.reponse_a.apercu}</p>
+              </div>
+            )}
+
+            {contenu && (
+              <p className="whitespace-pre-wrap text-[15px] leading-relaxed [overflow-wrap:anywhere]">
+                {m.contenu}
+                {/* Espace invisible réservé à l'heure et aux coches */}
+                {metaDansTexte && (
+                  <span
+                    aria-hidden="true"
+                    className="inline-block h-0 align-bottom"
+                    style={{ width: largeurReservee }}
+                  />
+                )}
               </p>
-            </div>
-          )}
+            )}
 
-          {m.contenu && (
-            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{m.contenu}</p>
-          )}
+            {contientFichier && <ApercuImages fichiers={m.fichiers} moi={moi} />}
 
-          {m.fichiers && m.fichiers.length > 0 && (
-            <ApercuImages fichiers={m.fichiers} moi={moi} />
-          )}
-        </div>
+            {/* Heure + coches */}
+            {metaDansTexte ? (
+              <span className="absolute bottom-1.5 right-3">
+                <MetaMessage m={m} moi={moi} statut={statut} />
+              </span>
+            ) : (
+              <div className="mt-1 flex justify-end">
+                <MetaMessage m={m} moi={moi} statut={statut} />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Réactions (chevauchent légèrement le bas de la bulle) */}
         <ReactionsAffichees
@@ -436,9 +525,6 @@ export default function Bulle({ m, moi, conversation, onRepondre, onModifier, on
           moi={moi}
           onToggle={(emoji) => onReagir?.(m, emoji)}
         />
-
-        {/* Heure + statut : en dehors de la bulle */}
-        <MetaMessage m={m} moi={moi} statut={statut} />
       </div>
 
       {/* Menu contextuel */}

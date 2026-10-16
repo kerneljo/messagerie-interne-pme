@@ -82,7 +82,7 @@ export default function NotificationsMenu() {
           )}
 
           <Link
-            to="/recus"
+            to="/conversations"
             onClick={() => setOuvert(false)}
             className="block rounded-b-xl border-t border-slate-100 px-4 py-3 text-center text-sm font-medium text-blue-600 hover:bg-slate-50"
           >

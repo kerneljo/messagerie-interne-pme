@@ -126,11 +126,11 @@ export default function Profil() {
 
         {/* Contenu sous le bandeau */}
         <div className="relative px-5 pb-10 sm:px-10 sm:pb-12">
-          <div className="absolute -top-20 left-5 sm:-top-28 sm:left-10">
+          <div className="absolute -top-16 left-5 sm:-top-28 sm:left-10">
             <BlocPhoto profil={profil} />
           </div>
 
-          <div className="flex justify-start pt-4 pl-52 sm:pt-6 sm:pl-62">
+          <div className="flex justify-start pt-20 sm:pt-6 sm:pl-68">
             <ActionsPhoto profil={profil} onChange={charger} />
           </div>
         </div>
@@ -153,9 +153,9 @@ export default function Profil() {
               aria-selected={selectionne}
               aria-controls={`panneau-${id}`}
               onClick={() => setOnglet(id)}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
+                           className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
                 selectionne
-                  ? 'rounded-bl-[5px] bg-lagon-950 text-papier shadow-sm'
+                  ? 'rounded-bl-[5px] bg-piment-600 text-white shadow-md'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
@@ -184,11 +184,11 @@ function BlocPhoto({ profil }) {
         <img
           src={profil.photo_url}
           alt={`${profil.prenom} ${profil.nom}`}
-          className="size-20 rounded-[30%] bg-papier object-cover shadow-2xl ring-4 ring-papier sm:size-52"
+          className="size-32 rounded-[30%] bg-papier object-cover shadow-2xl ring-4 ring-papier sm:size-52"
         />
       ) : (
-        <div className="flex size-40 items-center justify-center rounded-[30%] bg-mangue-300 shadow-2xl ring-4 ring-papier sm:size-56">
-          <span className="font-display text-6xl font-extrabold text-lagon-950 sm:text-7xl">
+        <div className="flex size-32 items-center justify-center rounded-[30%] bg-mangue-300 shadow-2xl ring-4 ring-papier sm:size-52">
+          <span className="font-display text-5xl font-extrabold text-lagon-950 sm:text-7xl">
             {profil.prenom?.[0]}
             {profil.nom?.[0]}
           </span>
@@ -214,7 +214,7 @@ function ActionsPhoto({ profil, onChange }) {
     setErreur('')
 
     if (fichier.size > TAILLE_MAX_PHOTO) {
-      setErreur("L'image ne doit pas dépasser 2 Mo.")
+      setErreur(`L'image ne doit pas dépasser ${TAILLE_MAX_PHOTO / (1024 * 1024)} Mo.`)
       return
     }
     if (!TYPES_PHOTO.includes(fichier.type)) {
@@ -329,7 +329,7 @@ function Fiche({ icone: Icone, titre, children }) {
   return (
     <section className="flex h-full flex-col rounded-3xl bg-papier p-6 shadow-sm ring-1 ring-slate-200/70">
       <header className="mb-5 flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-[30%] bg-salle text-lagon-950">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-[30%] bg-mangue-300/60 text-lagon-950">
           <Icone className="size-5" />
         </span>
         <h3 className="font-display text-lg font-bold text-slate-900">{titre}</h3>
@@ -448,7 +448,7 @@ function OngletSecurite() {
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-5">
       <section className="rounded-3xl bg-papier p-6 shadow-sm ring-1 ring-slate-200/70 sm:p-8 lg:col-span-3">
         <header className="mb-7 flex items-start gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-[30%] bg-salle text-lagon-950">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-[30%] bg-mangue-300/60 text-lagon-950">
             <KeyRound className="size-5" />
           </span>
           <div>

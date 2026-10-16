@@ -63,7 +63,7 @@ class ProfilController extends Controller
             'photo.required' => 'Aucune image sélectionnée.',
             'photo.image' => 'Le fichier doit être une image.',
             'photo.mimes' => 'Formats acceptés : JPG, PNG, WEBP.',
-            'photo.max' => 'L’image ne doit pas dépasser 2 Mo.',
+            'photo.max' => 'L’image ne doit pas dépasser 5 Mo.',
         ]);
 
         $u = $request->user();
@@ -109,17 +109,17 @@ class ProfilController extends Controller
         return response()->json(['message' => 'Photo supprimée.']);
     }
 
-    /** Changement de mot de passe. */
+    /** Changement de mot de passe (même règle de robustesse que l'inscription). */
     public function changerMotDePasse(Request $request): JsonResponse
     {
         $data = $request->validate([
             'mot_de_passe_actuel' => ['required', 'string'],
-            'nouveau_mot_de_passe' => ['required', 'string', 'confirmed', Password::min(8)],
+            'nouveau_mot_de_passe' => ['required', 'string', 'confirmed', Password::min(10)->letters()->numbers()],
         ], [
             'mot_de_passe_actuel.required' => 'Le mot de passe actuel est requis.',
             'nouveau_mot_de_passe.required' => 'Le nouveau mot de passe est requis.',
             'nouveau_mot_de_passe.confirmed' => 'Les deux mots de passe ne correspondent pas.',
-            'nouveau_mot_de_passe.min' => 'Le mot de passe doit contenir au moins 8 caractères.',
+            'nouveau_mot_de_passe.min' => 'Le mot de passe doit contenir au moins 10 caractères.',
         ]);
 
         $u = $request->user();
@@ -140,6 +140,11 @@ class ProfilController extends Controller
 
         $u->mot_de_passe_hash = $data['nouveau_mot_de_passe'];
         $u->save();
+
+        // Nouvel identifiant de session : une session volée avant le changement n'a plus de valeur
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
 
         Audit::log('RESET_MOT_DE_PASSE', $u->matricule, 'Changement par l’utilisateur lui-même');
 

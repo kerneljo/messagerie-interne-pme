@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Download } from 'lucide-react'
 
@@ -19,64 +19,91 @@ export function formaterTaille(o) {
   return `${(o / (1024 * 1024)).toFixed(1)} Mo`
 }
 
+/** Extension en majuscules (PDF, XLSX…) pour reconnaître le type d'un coup d'œil. */
+function typeDuFichier(nom) {
+  const n = nom || ''
+  return n.includes('.') ? n.split('.').pop().toUpperCase() : 'FICHIER'
+}
+
 /* ============================================================
-   Aperçu d'une image — Bouton ⬇ toujours visible
+   Aperçu d'une image : bouton ⬇ et taille toujours visibles,
+   clic ou Entrée pour agrandir, Échap pour fermer
    ============================================================ */
 function ApercuImage({ fichier }) {
   const [zoom, setZoom] = useState(false)
+  const [erreur, setErreur] = useState(false)
   const src = `/api/fichiers/${fichier.reference_fichier}`
+
+  // Échap ferme l'image agrandie
+  useEffect(() => {
+    if (!zoom) return
+    const surTouche = (e) => { if (e.key === 'Escape') setZoom(false) }
+    document.addEventListener('keydown', surTouche)
+    return () => document.removeEventListener('keydown', surTouche)
+  }, [zoom])
+
+  // Image introuvable ou refusée : on retombe sur la carte de téléchargement
+  if (erreur) return <ApercuFichier fichier={fichier} moi={false} />
 
   return (
     <>
       <div className="group relative inline-block max-w-full overflow-hidden rounded-xl bg-black/5">
-        {/* Image contrainte à 260×260 max */}
-        <img
-          src={src}
-          alt={fichier.nom_original}
+        {/* Image contrainte à 260×260 max, ouverte par un vrai bouton (accessible au clavier) */}
+        <button
+          type="button"
           onClick={() => setZoom(true)}
-          className="block cursor-pointer object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-          style={{
-            maxWidth: '260px',
-            maxHeight: '260px',
-            width: 'auto',
-            height: 'auto',
-          }}
-          loading="lazy"
-        />
+          className="block cursor-zoom-in rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          aria-label={`Agrandir l'image ${fichier.nom_original}`}
+        >
+          <img
+            src={src}
+            alt={fichier.nom_original}
+            onError={() => setErreur(true)}
+            className="block object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            style={{
+              maxWidth: '260px',
+              maxHeight: '260px',
+              width: 'auto',
+              height: 'auto',
+            }}
+            loading="lazy"
+          />
+        </button>
 
         {/* Bouton télécharger (toujours visible) */}
         <a
           href={src}
           download
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-2 left-2 z-10 flex size-8 items-center justify-center rounded-full
-                     bg-black/60 text-white backdrop-blur-sm
-                     transition-colors hover:bg-black/80"
+          className="absolute left-2 top-2 z-10 flex size-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white"
           title="Télécharger"
-          aria-label="Télécharger"
+          aria-label={`Télécharger ${fichier.nom_original}`}
         >
           <Download className="size-3.5" />
         </a>
 
         {/* Taille (toujours visible, sous le bouton) */}
-        <div className="absolute top-[42px] left-2 z-10 rounded-md bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
-          <p className="text-[10px] font-medium leading-tight text-white/90">
+        <div className="pointer-events-none absolute left-2 top-[42px] z-10 rounded-md bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
+          <p className="text-[11px] font-medium leading-tight text-white">
             {formaterTaille(fichier.taille)}
           </p>
         </div>
 
         {/* Nom du fichier en bas */}
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent px-2.5 py-1.5">
-          <p className="truncate text-[10px] font-medium text-white/95">
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/75 via-black/35 to-transparent px-2.5 py-1.5">
+          <p className="truncate text-[11px] font-medium text-white">
             {fichier.nom_original}
           </p>
         </div>
       </div>
 
-      {/* Lightbox (image agrandie au clic) */}
+      {/* Image agrandie */}
       <AnimatePresence>
         {zoom && (
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Aperçu de ${fichier.nom_original}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -84,21 +111,24 @@ function ApercuImage({ fichier }) {
             className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 p-4"
             onClick={() => setZoom(false)}
           >
-            <div className="absolute top-4 right-4 flex gap-2">
+            <div className="absolute right-4 top-4 flex gap-2">
               <a
                 href={src}
                 download
                 onClick={(e) => e.stopPropagation()}
                 className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition hover:bg-white/20"
                 title="Télécharger"
+                aria-label={`Télécharger ${fichier.nom_original}`}
               >
                 <Download className="size-5" />
               </a>
               <button
                 type="button"
+                autoFocus
                 onClick={() => setZoom(false)}
                 className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition hover:bg-white/20"
-                title="Fermer"
+                title="Fermer (Échap)"
+                aria-label="Fermer l'aperçu"
               >
                 <X className="size-5" />
               </button>
@@ -124,8 +154,8 @@ function ApercuImage({ fichier }) {
 }
 
 /* ============================================================
-   Aperçu d'un fichier non-image
-   Carte blanche + pastille bleue (même accent pour les deux côtés)
+   Aperçu d'un fichier non-image : carte blanche avec contour,
+   lisible aussi bien dans une bulle envoyée (lagon pâle) que reçue (blanche)
    ============================================================ */
 function ApercuFichier({ fichier, moi }) {
   const src = `/api/fichiers/${fichier.reference_fichier}`
@@ -134,10 +164,11 @@ function ApercuFichier({ fichier, moi }) {
     <a
       href={src}
       download
-      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 shadow-sm ring-1 transition ${
+      aria-label={`Télécharger ${fichier.nom_original}`}
+      className={`group flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 shadow-sm ring-1 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
         moi
-          ? 'bg-white/95 ring-white/40 hover:bg-white'
-          : 'bg-white ring-slate-300/60 hover:bg-slate-50 hover:ring-slate-300'
+          ? 'ring-indigo-300 hover:bg-indigo-50'
+          : 'ring-slate-300 hover:bg-slate-50'
       }`}
     >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition group-hover:bg-blue-700">
@@ -148,8 +179,9 @@ function ApercuFichier({ fichier, moi }) {
         <span className="block truncate text-sm font-medium text-slate-900">
           {fichier.nom_original}
         </span>
-        <span className="block text-xs text-slate-500">
-          {formaterTaille(fichier.taille)}
+        <span className="block text-xs text-slate-600">
+          {typeDuFichier(fichier.nom_original)}
+          {fichier.taille ? ` · ${formaterTaille(fichier.taille)}` : ''}
         </span>
       </span>
     </a>
@@ -170,7 +202,7 @@ export default function ApercuImages({ fichiers, moi }) {
       {images.length > 0 && (
         <div className={`flex flex-wrap gap-2 ${moi ? 'justify-end' : 'justify-start'}`}>
           {images.map((f) => (
-            <ApercuImage key={f.reference_fichier} fichier={f} moi={moi} />
+            <ApercuImage key={f.reference_fichier} fichier={f} />
           ))}
         </div>
       )}

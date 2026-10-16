@@ -6,13 +6,13 @@ import { Chargement } from './components/ui'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
-import Recus from './pages/Recus'
-import Envoyes from './pages/Envoyes'
-import Envoyer from './pages/Envoyer'
-import NouveauGroupe from './pages/NouveauGroupe'
 import Conversations from './pages/Conversations'
 import Profil from './pages/Profil'
 import ProfilUtilisateur from './pages/ProfilUtilisateur'
+import Annuaire from './pages/Annuaire'
+import ATraiter from './pages/ATraiter'
+import Notifications from './pages/Notifications'
+import Documents from './pages/Documents'
 
 // Admin
 import AdminLayout from './pages/admin/Layout'
@@ -48,12 +48,12 @@ export default function App() {
 
             <Route element={<RoutePrivee><Layout /></RoutePrivee>}>
               <Route index element={<Dashboard />} />
-              <Route path="recus" element={<Recus />} />
-              <Route path="envoyes" element={<Envoyes />} />
-              <Route path="envoyer" element={<Envoyer />} />
               <Route path="conversations" element={<Conversations />} />
-              <Route path="conversations/nouveau-groupe" element={<NouveauGroupe />} />
               <Route path="conversations/:reference" element={<Conversations />} />
+              <Route path="a-traiter" element={<ATraiter />} />
+              <Route path="annuaire" element={<Annuaire />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="documents" element={<Documents />} />
               <Route path="profil" element={<Profil />} />
               <Route path="utilisateurs/:matricule" element={<ProfilUtilisateur />} />
 

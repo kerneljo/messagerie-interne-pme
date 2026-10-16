@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Building2, FileText, Inbox, MessagesSquare, ShieldAlert, SendHorizontal, SquarePen, UserCheck, UserX, LogIn,
+  Building2, FileText, Inbox, MessagesSquare, ShieldAlert, SendHorizontal, UserCheck, UserX, LogIn,
 } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../AuthContext'
@@ -21,7 +21,7 @@ const TEINTES = {
 
 function Stat({ titre, valeur, icone: Icone, teinte = 'bleu', to }) {
   const contenu = (
-    <Carte className="flex items-center gap-4 p-5 transition-shadow hover:shadow-md">
+    <Carte className="flex items-center gap-4 bg-white p-5 transition-shadow hover:shadow-md">
       <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${TEINTES[teinte]}`}>
         <Icone className="size-6" />
       </span>
@@ -37,7 +37,7 @@ function Stat({ titre, valeur, icone: Icone, teinte = 'bleu', to }) {
 function Activite({ jours }) {
   const max = Math.max(1, ...jours.flatMap((j) => [j.envoyes, j.recus]))
   return (
-    <Carte className="p-5">
+    <Carte className="bg-white p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-semibold text-slate-800">Activité des 7 derniers jours</h2>
         <div className="flex items-center gap-4 text-xs text-slate-500">
@@ -87,24 +87,16 @@ export default function Dashboard() {
     }
   }, [])
 
-  usePolling(charger, 30000)
+  usePolling(charger, 120000)
 
   const heure = new Date().getHours()
   const salutation = heure < 18 ? 'Bonjour' : 'Bonsoir'
 
   return (
     <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">{salutation} {utilisateur.prenom} 👋</h2>
-          <p className="text-sm text-slate-500">Voici un aperçu de votre messagerie.</p>
-        </div>
-        <Link
-          to="/envoyer"
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          <SquarePen className="size-4" /> Envoyer un message
-        </Link>
+      <div>
+        <h2 className="text-2xl font-bold text-slate-800">{salutation} {utilisateur.prenom} 👋</h2>
+        <p className="text-sm text-slate-500">Voici un aperçu de votre messagerie.</p>
       </div>
 
       {erreur && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{erreur}</p>}
@@ -113,9 +105,9 @@ export default function Dashboard() {
       {donnees && (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Stat titre="Messages non lus" valeur={donnees.non_lus} icone={Inbox} teinte="bleu" to="/recus" />
+            <Stat titre="Messages non lus" valeur={donnees.non_lus} icone={Inbox} teinte="bleu" to="/conversations" />
             <Stat titre="Conversations" valeur={donnees.conversations.total} icone={MessagesSquare} teinte="violet" to="/conversations" />
-            <Stat titre="Envoyés (7 jours)" valeur={donnees.envoyes_7j} icone={SendHorizontal} teinte="vert" to="/envoyes" />
+            <Stat titre="Envoyés (7 jours)" valeur={donnees.envoyes_7j} icone={SendHorizontal} teinte="vert" to="/conversations" />
             <Stat titre="Pièces jointes (7 jours)" valeur={donnees.fichiers_7j} icone={FileText} teinte="orange" />
           </div>
 
@@ -124,10 +116,10 @@ export default function Dashboard() {
               <Activite jours={donnees.activite} />
             </div>
 
-            <Carte className="flex flex-col">
+            <Carte className="flex flex-col bg-white">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <h2 className="font-semibold text-slate-800">À lire</h2>
-                <Link to="/recus" className="text-sm font-medium text-blue-600 hover:underline">Tout voir</Link>
+                <Link to="/conversations" className="text-sm font-medium text-blue-600 hover:underline">Tout voir</Link>
               </div>
               {conversationsNonLues.length === 0 ? (
                 <p className="p-8 text-center text-sm text-slate-500">Tout est lu. 🎉</p>
@@ -158,7 +150,7 @@ export default function Dashboard() {
             </Carte>
           </div>
 
-          <Carte className="p-5">
+          <Carte className="bg-white p-5">
             <h2 className="mb-3 font-semibold text-slate-800">Répartition de vos conversations</h2>
             <div className="grid gap-3 sm:grid-cols-3">
               {[

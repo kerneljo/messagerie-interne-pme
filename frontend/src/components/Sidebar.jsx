@@ -1,14 +1,16 @@
 import { Fragment, useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  Inbox,
+  Contact,
+  FolderOpen,
   LayoutDashboard,
   LogOut,
+  Bell,
   MessagesSquare,
   PanelLeftClose,
   PanelLeftOpen,
-  SendHorizontal,
   ShieldCheck,
+  ClipboardCheck,
   SquarePen,
   X,
 } from 'lucide-react'
@@ -18,16 +20,48 @@ import { salleDe } from '../salle'
 import { Avatar } from './ui'
 import ConfirmationModal from './ConfirmationModal'
 
-const PAS = 58 // hauteur d'une entrée (48 px) + espace (10 px)
+const PAS = 58
 const HAUTEUR_SEPARATEUR = 44
 
-const ENTREES = [
-  { cle: 'dashboard', to: '/', end: true, libelle: 'Dashboard', icone: LayoutDashboard },
-  { cle: 'recus', to: '/recus', libelle: 'Boîte de réception', icone: Inbox, badge: 'messages' },
-  { cle: 'envoyes', to: '/envoyes', libelle: 'Envoyés', icone: SendHorizontal },
-  { cle: 'conversations', to: '/conversations', libelle: 'Conversations', icone: MessagesSquare, badge: 'conversations' },
+/*
+ * Navigation organisée en sections.
+ * - La première section n'a pas de titre.
+ * - Les sections avec `reservee: true` ne s'affichent que pour l'administrateur.
+ *
+ * ORDRE : Tableau de bord en premier, puis Messagerie, puis les autres.
+ */
+const SECTIONS = [
+  {
+    cle: 'espace-travail',
+    titre: null,
+    entrees: [
+      { cle: 'dashboard', to: '/', end: true, libelle: 'Tableau de bord', icone: LayoutDashboard },
+      { cle: 'conversations', to: '/conversations', libelle: 'Conversations', icone: MessagesSquare, badge: 'messagerie' },
+      { cle: 'a-traiter', to: '/a-traiter', libelle: 'À traiter', icone: ClipboardCheck, badge: 'actions' },
+      { cle: 'documents', to: '/documents', libelle: 'Documents', icone: FolderOpen }, 
+      { cle: 'notifications', to: '/notifications', libelle: 'Notifications', icone: Bell, badge: 'notifications' },
+      { cle: 'annuaire', to: '/annuaire', libelle: 'Annuaire', icone: Contact },
+    ],
+  },
+  {
+    cle: 'administration',
+    titre: 'Système',
+    reservee: true,
+    entrees: [
+      { cle: 'admin', to: '/admin', libelle: 'Administration', icone: ShieldCheck },
+    ],
+  },
 ]
-const ENTREE_ADMIN = { cle: 'admin', to: '/admin', libelle: 'Administration', icone: ShieldCheck, apresSeparateur: true }
+
+// Entrée de navigation correspondant à l'URL (préfixe le plus long), sinon à la salle courante
+function trouverEntreeActive(entrees, pathname, salle) {
+  let meilleure = null
+  for (const e of entrees) {
+    const correspond = e.end ? pathname === e.to : pathname === e.to || pathname.startsWith(`${e.to}/`)
+    if (correspond && (!meilleure || e.to.length > meilleure.to.length)) meilleure = e
+  }
+  return meilleure ?? entrees.find((e) => e.cle === salle) ?? null
+}
 
 function Logo({ className }) {
   return (
@@ -50,14 +84,24 @@ function Entree({ entree, actif, badge, replie, onClick }) {
       title={replie ? entree.libelle : undefined}
       className={`relative z-10 mb-2.5 ml-3 flex h-12 items-center rounded-l-[22px] text-[15px] font-semibold transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-mangue-400 ${
         replie ? 'justify-center px-0' : 'gap-3.5 pl-4 pr-5'
-      } ${actif ? 'text-lagon-950' : 'text-slate-300 hover:bg-lagon-800/60 hover:text-white'}`}
+      } ${
+        actif
+          ? 'text-lagon-950 font-bold'
+          : 'text-white hover:bg-white/8'
+      }`}
     >
       <Icone className="size-5 shrink-0" />
       {!replie && (
         <>
-          <span className="flex-1">{entree.libelle}</span>
+          <span className="flex-1 truncate">{entree.libelle}</span>
           {badge > 0 && (
-            <span className="rounded-full rounded-bl-[4px] bg-mangue-400 px-2 py-0.5 text-xs font-bold text-lagon-950">
+            <span
+              className={`rounded-full rounded-bl-[4px] px-2 py-0.5 text-xs font-bold ${
+                actif
+                  ? 'bg-lagon-950/15 text-lagon-950'
+                  : 'bg-mangue-400 text-lagon-950'
+              }`}
+            >
               {badge > 99 ? '99+' : badge}
             </span>
           )}
@@ -72,7 +116,7 @@ function Entree({ entree, actif, badge, replie, onClick }) {
 
 export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
   const { utilisateur, deconnexion } = useAuth()
-  const { nonLus, conversationsNonLues } = useMessagerie()
+  const { conversationsNonLues } = useMessagerie()
   const { pathname } = useLocation()
 
   const [confirmationOuverte, setConfirmationOuverte] = useState(false)
@@ -81,15 +125,27 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
   const estAdmin = utilisateur?.role?.libelle === 'Administrateur'
   const salle = salleDe(pathname)
 
-  // Couleur de la section courante, disponible pour toute l'application (classe bg-salle)
   useEffect(() => {
     document.documentElement.dataset.salle = salle
   }, [salle])
 
-  const entrees = estAdmin ? [...ENTREES, ENTREE_ADMIN] : ENTREES
-  const index = entrees.findIndex((e) => e.cle === salle)
-  const decalage = index < 0 ? 0 : index * PAS + (entrees[index].apresSeparateur ? HAUTEUR_SEPARATEUR : 0)
-  const badges = { messages: nonLus, conversations: conversationsNonLues.length }
+  // Sections visibles selon le rôle
+  const sections = SECTIONS.filter((s) => !s.reservee || estAdmin)
+  const toutes = sections.flatMap((s) => s.entrees)
+  const entreeActive = trouverEntreeActive(toutes, pathname, salle)
+
+  // Position verticale de chaque entrée (pour l'onglet animé)
+  const positions = {}
+  let y = 0
+  for (const section of sections) {
+    if (section.titre) y += HAUTEUR_SEPARATEUR
+    for (const entree of section.entrees) {
+      positions[entree.cle] = y
+      y += PAS
+    }
+  }
+  const decalage = entreeActive ? positions[entreeActive.cle] : 0
+  const badges = { messagerie: conversationsNonLues.length, notifications: 0 }
 
   async function confirmerDeconnexion() {
     setDeconnexionEnCours(true)
@@ -120,13 +176,13 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
           <Logo className={replie ? 'size-10' : 'size-11 shrink-0'} />
           {!replie && (
             <span className="flex-1">
-              <span className="block font-display text-xl leading-none font-extrabold text-papier">Messagerie</span>
+              <span className="block font-display text-xl leading-none font-extrabold text-white">Messagerie</span>
               <span className="mt-1.5 block text-[11px] font-bold tracking-[0.2em] text-mangue-400">INTERNE</span>
             </span>
           )}
 
           <button
-            className="rounded-lg p-1 text-lagon-300 transition-colors hover:text-white lg:hidden"
+            className="rounded-lg p-1 text-white/70 transition-colors hover:text-white lg:hidden"
             onClick={onFermer}
             aria-label="Fermer le menu"
           >
@@ -136,8 +192,8 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
           <button
             type="button"
             onClick={onBasculerRepli}
-            className="hidden rounded-lg p-1.5 text-lagon-300 transition-colors hover:bg-lagon-800/60 hover:text-white lg:flex"
-            aria-label={replie ? 'Déplier la sidebar' : 'Replier la sidebar'}
+            className="hidden rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/5 hover:text-white lg:flex"
+            aria-label={replie ? 'Déplier le menu' : 'Replier le menu'}
             title={replie ? 'Déplier' : 'Replier'}
           >
             <IconeRepli className="size-5" />
@@ -147,9 +203,9 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
         {/* Action principale */}
         <div className={replie ? 'flex justify-center pt-4' : 'px-4 pt-5'}>
           <NavLink
-            to="/envoyer"
+            to="/conversations?nouvelle=1"
             onClick={onFermer}
-            title={replie ? 'Envoyer un message' : undefined}
+            title={replie ? 'Nouvelle discussion' : undefined}
             className={`flex items-center justify-center bg-piment-600 font-bold text-white transition-colors hover:bg-piment-700 focus-visible:outline-2 focus-visible:outline-mangue-400 ${
               replie
                 ? 'size-12 rounded-[18px_18px_18px_6px]'
@@ -157,53 +213,58 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
             }`}
           >
             <SquarePen className="size-5 shrink-0" />
-            {!replie && 'Envoyer un message'}
+            {!replie && 'Nouvelle discussion'}
           </NavLink>
         </div>
 
-        {/* Navigation : l'onglet creusé glisse jusqu'à l'entrée active */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-7">
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-7" aria-label="Menu">
           <div className="relative">
-          <span
-            aria-hidden="true"
-            className="onglet motion-reduce:transition-none"
-            style={{ transform: `translateY(${decalage}px)`, opacity: index < 0 ? 0 : 1 }}
-          />
-          {entrees.map((entree) => (
-            <Fragment key={entree.cle}>
-              {entree.apresSeparateur && (
-                <div className={`flex h-11 items-end pb-3 ${replie ? 'justify-center' : 'px-7'}`}>
-                  {replie ? (
-                    <span className="h-px w-8 bg-lagon-800" />
-                  ) : (
-                    <span className="text-[11px] font-bold tracking-[0.16em] text-lagon-300 uppercase">Système</span>
-                  )}
-                </div>
-              )}
-              <Entree
-                entree={entree}
-                actif={entree.cle === salle}
-                badge={entree.badge ? badges[entree.badge] : 0}
-                replie={replie}
-                onClick={onFermer}
-              />
-            </Fragment>
-          ))}
+            <span
+              aria-hidden="true"
+              className="onglet motion-reduce:transition-none"
+              style={{ transform: `translateY(${decalage}px)`, opacity: entreeActive ? 1 : 0 }}
+            />
+            {sections.map((section) => (
+              <Fragment key={section.cle}>
+                {section.titre && (
+                  <div className={`flex h-11 items-end pb-3 ${replie ? 'justify-center' : 'px-7'}`}>
+                    {replie ? (
+                      <span className="h-px w-8 bg-white/25" />
+                    ) : (
+                      <span className="text-[11px] font-bold tracking-[0.16em] text-white/70 uppercase">
+                        {section.titre}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {section.entrees.map((entree) => (
+                  <Entree
+                    key={entree.cle}
+                    entree={entree}
+                    actif={entree.cle === entreeActive?.cle}
+                    badge={entree.badge ? badges[entree.badge] : 0}
+                    replie={replie}
+                    onClick={onFermer}
+                  />
+                ))}
+              </Fragment>
+            ))}
           </div>
         </nav>
 
-        {/* Profil et déconnexion */}
-        <div className="border-t border-lagon-800 p-3 pb-4">
+        {/* Compte et déconnexion */}
+        <div className="border-t border-white/10 px-3 pb-5 pt-3">
           {replie ? (
             <div className="flex flex-col items-center gap-2">
-              <NavLink to="/profil" onClick={onFermer} title="Mon profil">
+              <NavLink to="/profil" onClick={onFermer} title="Mon compte">
                 <Avatar prenom={utilisateur.prenom} nom={utilisateur.nom} taille="sm" photoUrl={utilisateur.photo_url} />
               </NavLink>
               <button
                 onClick={() => setConfirmationOuverte(true)}
-                className="rounded-lg p-2 text-lagon-300 transition-colors hover:bg-lagon-800/60 hover:text-white"
-                aria-label="Déconnexion"
-                title="Déconnexion"
+                className="rounded-lg p-2 text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+                aria-label="Se déconnecter"
+                title="Se déconnecter"
               >
                 <LogOut className="size-5" />
               </button>
@@ -214,25 +275,25 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
                 to="/profil"
                 onClick={onFermer}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-2xl px-2 py-2 transition-colors ${
-                    isActive ? 'bg-lagon-800' : 'hover:bg-lagon-800/60'
+                  `flex items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors ${
+                    isActive ? 'bg-white/10' : 'hover:bg-white/5'
                   }`
                 }
               >
                 <Avatar prenom={utilisateur.prenom} nom={utilisateur.nom} taille="sm" photoUrl={utilisateur.photo_url} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-papier">
+                  <p className="truncate text-sm font-semibold text-white">
                     {utilisateur.prenom} {utilisateur.nom}
                   </p>
-                  <p className="truncate text-xs text-lagon-300">{utilisateur.role.libelle}</p>
+                  <p className="truncate text-xs text-white/80">{utilisateur.role.libelle}</p>
                 </div>
               </NavLink>
               <button
                 onClick={() => setConfirmationOuverte(true)}
-                className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-300 transition-colors hover:bg-lagon-800/60 hover:text-white"
+                className="mt-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-white/90 transition-colors hover:bg-white/5 hover:text-white"
               >
                 <LogOut className="size-5" />
-                Déconnexion
+                Se déconnecter
               </button>
             </>
           )}

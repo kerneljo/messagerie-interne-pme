@@ -2,24 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MessageEnvoye;
+use App\Events\UtilisateurEcrit;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use App\Events\MessageEnvoye;
-use App\Events\UtilisateurEcrit;
 
 class MessageController extends Controller
 {
+    private const CATEGORIES = ['NORMAL', 'INFORMATION', 'ACTION_REQUISE', 'URGENT'];
+
     /** Messages d'une conversation. Pagination vers le passe : ?avant=<reference_message>&limite=30 */
     public function index(Request $request, Conversation $conversation): JsonResponse
     {
@@ -37,9 +41,12 @@ class MessageController extends Controller
         }
 
         $messages = $requete->orderByDesc('reference_message')->limit($limite)->get()->reverse()->values();
+        $extras = self::enrichir($messages, (int) $u->matricule, $conversation);
 
         return response()->json([
-            'messages' => $messages->map(fn ($m) => self::presenter($m))->values(),
+            'messages' => $messages
+                ->map(fn ($m) => self::presenter($m, $extras[$m->reference_message] ?? null))
+                ->values(),
             'peut_charger_plus' => $messages->count() === $limite,
         ]);
     }
@@ -51,6 +58,8 @@ class MessageController extends Controller
 
         $data = $request->validate([
             'contenu' => ['nullable', 'string', 'max:5000'],
+            'categorie' => ['nullable', Rule::in(self::CATEGORIES)],
+            'echeance' => ['nullable', 'date', 'after:now'],
             'reference_message_parent' => ['nullable', 'integer',
                 Rule::exists('message', 'reference_message')
                     ->where('reference_conversation', $conversation->reference_conversation)],
@@ -68,15 +77,24 @@ class MessageController extends Controller
             ]);
         }
 
+        // Une échéance n'a de sens que pour un message qui attend un accusé
+        $categorie = $data['categorie'] ?? 'NORMAL';
+        $echeance = in_array($categorie, SuiviController::CATEGORIES_AVEC_ACCUSE, true) && ! empty($data['echeance'])
+            ? Carbon::parse($data['echeance'])
+            : null;
+
         $stockes = [];
         try {
-            $message = DB::transaction(function () use ($conversation, $u, $contenu, $data, $fichiers, &$stockes) {
-                $m = Message::create([
+            $message = DB::transaction(function () use ($conversation, $u, $contenu, $data, $fichiers, $categorie, $echeance, &$stockes) {
+                $m = new Message();
+                $m->forceFill([
                     'contenu' => $contenu !== '' ? $contenu : null,
                     'matricule_expediteur' => $u->matricule,
                     'reference_conversation' => $conversation->reference_conversation,
                     'reference_message_parent' => $data['reference_message_parent'] ?? null,
-                ]);
+                    'categorie' => $categorie,
+                    'echeance' => $echeance,
+                ])->save();
 
                 foreach ($fichiers as $f) {
                     $taille = $f->getSize();
@@ -105,18 +123,25 @@ class MessageController extends Controller
         }
 
         $message->refresh()->load(['expediteur', 'fichiers', 'parent.expediteur']);
+        $message->loadCount('lecteurs');
 
-               Audit::log('ENVOI_MESSAGE', $u->matricule,
-            "message #{$message->reference_message} dans conversation #{$conversation->reference_conversation}");
+        $details = "message #{$message->reference_message} dans conversation #{$conversation->reference_conversation}";
+        if ($categorie !== 'NORMAL') {
+            $details .= " ({$categorie})";
+        }
+        Audit::log('ENVOI_MESSAGE', $u->matricule, $details);
+
         foreach ($message->fichiers as $f) {
             Audit::log('ENVOI_FICHIER', $u->matricule,
                 "fichier #{$f->reference_fichier} ({$f->nom_original}) dans message #{$message->reference_message}");
         }
 
-        // 🔥 Diffusion temps réel aux autres participants
+        // Diffusion temps réel aux autres participants
         broadcast(new MessageEnvoye($message))->toOthers();
 
-        return response()->json(self::presenter($message), 201);
+        $extras = self::enrichir(collect([$message]), (int) $u->matricule, $conversation);
+
+        return response()->json(self::presenter($message, $extras[$message->reference_message] ?? null), 201);
     }
 
     public function update(Request $request, Message $message): JsonResponse
@@ -125,12 +150,26 @@ class MessageController extends Controller
 
         $data = $request->validate(['contenu' => ['required', 'string', 'max:5000']]);
 
-        $message->update(['contenu' => $data['contenu'], 'date_modification' => now()]);
+        if ($data['contenu'] !== $message->contenu) {
+            DB::transaction(function () use ($message, $data) {
+                // L'ancien contenu est conservé : consultable par les participants, jamais par l'audit
+                DB::table('message_version')->insert([
+                    'reference_message' => $message->reference_message,
+                    'contenu' => $message->contenu,
+                    'date_version' => now(),
+                ]);
+
+                $message->update(['contenu' => $data['contenu'], 'date_modification' => now()]);
+            });
+
+            Audit::log('MODIF_MESSAGE', $request->user()->matricule, "message #{$message->reference_message}");
+        }
+
         $message->load(['expediteur', 'fichiers', 'parent.expediteur']);
+        $message->loadCount('lecteurs');
+        $extras = self::enrichir(collect([$message]), (int) $request->user()->matricule, $message->conversation);
 
-        Audit::log('MODIF_MESSAGE', $request->user()->matricule, "message #{$message->reference_message}");
-
-        return response()->json(self::presenter($message));
+        return response()->json(self::presenter($message, $extras[$message->reference_message] ?? null));
     }
 
     /** Suppression logique (est_supprime = true). */
@@ -164,8 +203,8 @@ class MessageController extends Controller
 
         return response()->json(['marques' => $ids->count()]);
     }
-        /** Signale aux autres participants qu'un utilisateur est en train d'écrire. */
-       
+
+    /** Signale aux autres participants qu'un utilisateur est en train d'écrire. */
     public function typing(Request $request, Conversation $conversation): Response
     {
         Gate::authorize('ecrire', $conversation);
@@ -180,7 +219,52 @@ class MessageController extends Controller
         return response()->noContent();
     }
 
-    public static function presenter(Message $m): array
+    /**
+     * Pour les messages qui attendent un accusé : MA prise en compte (si je suis destinataire)
+     * ou le résumé du suivi (si je suis l'expéditeur). Une seule requête pour tous les messages.
+     * Renvoie un tableau indexé par reference_message.
+     */
+    private static function enrichir(Collection $messages, int $moi, Conversation $conversation): array
+    {
+        $concernes = $messages->filter(
+            fn ($m) => in_array($m->categorie, SuiviController::CATEGORIES_AVEC_ACCUSE, true)
+        );
+
+        if ($concernes->isEmpty()) {
+            return [];
+        }
+
+        $prises = DB::table('prise_en_compte')
+            ->whereIn('reference_message', $concernes->pluck('reference_message')->all())
+            ->get()
+            ->groupBy('reference_message');
+
+        $attendus = max($conversation->participants()->count() - 1, 0);
+        $extras = [];
+
+        foreach ($concernes as $m) {
+            $lignes = $prises->get($m->reference_message, collect());
+
+            if ((int) $m->matricule_expediteur === $moi) {
+                $extras[$m->reference_message] = ['suivi' => [
+                    'attendus' => $attendus,
+                    'lus' => (int) ($m->lecteurs_count ?? 0),
+                    'pris_en_compte' => $lignes->count(),
+                    'fait' => $lignes->where('statut', 'FAIT')->count(),
+                ]];
+            } else {
+                $maLigne = $lignes->firstWhere('matricule', $moi);
+                $extras[$m->reference_message] = ['ma_prise_en_compte' => $maLigne ? [
+                    'statut' => $maLigne->statut,
+                    'date_statut' => Carbon::parse($maLigne->date_statut)->toIso8601String(),
+                ] : null];
+            }
+        }
+
+        return $extras;
+    }
+
+    public static function presenter(Message $m, ?array $extra = null): array
     {
         return [
             'reference_message' => $m->reference_message,
@@ -188,11 +272,12 @@ class MessageController extends Controller
             'contenu' => $m->contenu,
             'date_envoi' => $m->date_envoi?->toIso8601String(),
             'date_modification' => $m->date_modification?->toIso8601String(),
+            'categorie' => $m->categorie ?? 'NORMAL',
+            'echeance' => $m->echeance ? Carbon::parse($m->echeance)->toIso8601String() : null,
             'expediteur' => $m->expediteur ? [
                 'matricule' => $m->expediteur->matricule,
                 'nom' => $m->expediteur->nom,
                 'prenom' => $m->expediteur->prenom,
-                'photo_url' => $m->expediteur->photo_url,
                 'photo_url' => $m->expediteur->photo_url,
             ] : null,
             'reponse_a' => $m->parent ? [
@@ -209,6 +294,8 @@ class MessageController extends Controller
             ])->values(),
             'lu_par_moi' => (bool) ($m->lu_par_moi ?? false),
             'nb_lecteurs' => (int) ($m->lecteurs_count ?? 0),
+            'ma_prise_en_compte' => $extra['ma_prise_en_compte'] ?? null,
+            'suivi' => $extra['suivi'] ?? null,
             'reactions' => \App\Http\Controllers\ReactionController::agreger($m),
         ];
     }

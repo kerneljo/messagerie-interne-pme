@@ -1,0 +1,86 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Service;
+use App\Models\Utilisateur;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+/** Annuaire : liste des collegues (comptes actifs) pour choisir des destinataires. */
+class AnnuaireController extends Controller
+{
+    private const LIMITE_MAX = 200;
+    private const MIN_RECHERCHE = 2;
+
+    /**
+     * Sans filtre : tous les collègues actifs.
+     * Filtres optionnels et combinables : code_service et q (nom, prénom, email, poste, service).
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $limite = max(1, min((int) $request->query('limite', 50), self::LIMITE_MAX));
+        $q = trim((string) $request->query('q', ''));
+        $codeService = $request->query('code_service');
+
+        $requete = Utilisateur::with(['service', 'poste'])
+            ->where('statut_compte', 'actif')
+            ->where('matricule', '<>', $request->user()->matricule);
+
+        if ($codeService) {
+            $requete->where('code_service', (int) $codeService);
+        }
+
+        // La recherche textuelle ne s'applique qu'à partir de 2 caractères
+        if (mb_strlen($q) >= self::MIN_RECHERCHE) {
+            $motif = '%' . addcslashes($q, '%_\\') . '%';
+
+            $requete->where(function ($w) use ($motif) {
+                $w->where('nom', 'ilike', $motif)
+                    ->orWhere('prenom', 'ilike', $motif)
+                    ->orWhere('email', 'ilike', $motif)
+                    ->orWhereHas('service', fn ($s) => $s->where('nom_service', 'ilike', $motif))
+                    ->orWhereHas('poste', fn ($p) => $p->where('libelle', 'ilike', $motif));
+            });
+        }
+
+        $resultats = $requete
+            ->orderBy('nom')
+            ->orderBy('prenom')
+            ->limit($limite)
+            ->get();
+
+        return response()->json($this->formater($resultats));
+    }
+
+    /** Liste des services (pour alimenter le select). */
+    public function services(): JsonResponse
+    {
+        $services = Service::withCount(['utilisateurs' => function ($q) {
+                $q->where('statut_compte', 'actif');
+            }])
+            ->orderBy('nom_service')
+            ->get()
+            ->map(fn ($s) => [
+                'code_service' => $s->code_service,
+                'nom_service' => $s->nom_service,
+                'nb_utilisateurs' => $s->utilisateurs_count,
+            ]);
+
+        return response()->json($services);
+    }
+
+    private function formater($utilisateurs): array
+    {
+        return $utilisateurs->map(fn ($u) => [
+            'matricule' => $u->matricule,
+            'nom' => $u->nom,
+            'prenom' => $u->prenom,
+            'email' => $u->email,
+            'photo_url' => $u->photo_url,
+            'poste' => $u->poste?->libelle,
+            'service' => $u->service?->nom_service,
+            'code_service' => $u->service?->code_service,
+        ])->all();
+    }
+}
