@@ -1,12 +1,13 @@
 import { useLocation } from 'react-router-dom'
 import { Menu } from 'lucide-react'
-import NotificationsMenu from './NotificationsMenu'
 
 const TITRES = {
   '/': 'Tableau de bord',
   '/documents': 'Documents',
+   '/notifications': 'Notifications',
   '/annuaire': 'Annuaire',
   '/admin': 'Administration',
+  '/a-traiter': 'A traiter',
   '/profil': 'Mon profil',
 }
 
@@ -43,9 +44,6 @@ export default function Header({ onMenu, refEmplacement }) {
       <h1 className="flex-1 truncate text-xl font-bold text-slate-900 peer-[:not(:empty)]:sr-only">
         {titrePage(pathname)}
       </h1>
-
-      {/* Notifications */}
-      <NotificationsMenu />
     </header>
   )
 }

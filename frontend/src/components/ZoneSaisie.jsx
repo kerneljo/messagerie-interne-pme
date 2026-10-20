@@ -45,6 +45,8 @@ export default function ZoneSaisie({
   hauteurMin = 52,
   afficherEnvoi = true,
   peutEnvoyer = true,
+  envoiSansContenu = false,
+  libelleEnvoi = 'Envoyer',
   envoi = false,
 }) {
   const textareaRef = useRef(null)
@@ -143,7 +145,8 @@ export default function ZoneSaisie({
     })
   }
 
-  const actif = peutEnvoyer && !envoi && (texte.trim() !== '' || fichiers.length > 0)
+  const actif =
+    peutEnvoyer && !envoi && (envoiSansContenu || texte.trim() !== '' || fichiers.length > 0)
 
   return (
     <div
@@ -270,8 +273,8 @@ export default function ZoneSaisie({
             animate={{ scale: actif ? 1 : 0.9 }}
             whileTap={actif ? { scale: 0.88 } : undefined}
             transition={{ type: 'spring', stiffness: 500, damping: 18 }}
-            title="Envoyer"
-            aria-label="Envoyer"
+            title={libelleEnvoi}
+            aria-label={libelleEnvoi}
             className="flex size-10 shrink-0 items-center justify-center rounded-full bg-piment-600 text-white shadow-sm transition-colors hover:bg-piment-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-piment-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
           >
             {envoi ? (
@@ -289,7 +292,11 @@ export default function ZoneSaisie({
 
       {pickerOuvert &&
         createPortal(
-          <div className="fixed inset-0 z-[100]" onClick={() => setPickerOuvert(false)}>
+          <div
+            className="fixed inset-0 z-[100]"
+            data-ignorer-clic-exterieur
+            onClick={() => setPickerOuvert(false)}
+          >
             <div
               className="absolute"
               style={{ top: pickerCoords.top, left: pickerCoords.left }}

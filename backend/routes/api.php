@@ -16,7 +16,12 @@ use App\Http\Middleware\RoleRequis;
 use Illuminate\Support\Facades\Route;
 
 // Routes publiques
+// Un matricule est toujours numérique : « moi » n'est jamais pris pour un matricule
+Route::pattern('matricule', '[0-9]+');
+
 Route::post('/register', [AuthController::class, 'register']);
+Route::post('/inscription/envoyer-code', [AuthController::class, 'envoyerCode']);
+Route::post('/inscription/verifier-code', [AuthController::class, 'verifierCode']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/postes', [PosteController::class, 'index']);
 Route::get('/roles', fn() => response()->json(App\Models\Role::orderBy('libelle')->get(['code_role', 'libelle'])));
@@ -73,6 +78,7 @@ Route::middleware(['auth:sanctum', CompteActif::class])->group(function () {
     Route::get('/messages/{message}/versions', [App\Http\Controllers\SuiviController::class, 'versions']);
     Route::get('/actions', [App\Http\Controllers\SuiviController::class, 'actions']);
     Route::delete('/messages/{message}', [MessageController::class, 'destroy']);
+    Route::delete('/conversations/{conversation}/moi', [ConversationController::class, 'supprimerPourMoi']);
 
     // Fichiers et documents
     Route::get('/fichiers/{fichier}', [FichierController::class, 'telecharger']);

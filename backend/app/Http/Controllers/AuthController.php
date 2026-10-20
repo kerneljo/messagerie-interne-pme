@@ -6,10 +6,13 @@ use App\Models\Role;
 use App\Models\Service;
 use App\Models\Utilisateur;
 use App\Support\Audit;
+use App\Mail\CodeVerificationMail;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -19,19 +22,16 @@ class AuthController extends Controller
     private const MAX_TENTATIVES = 5;
     private const BLOCAGE_SECONDES = 300;
     private const MAX_DEMANDES_EN_ATTENTE = 100;
+    private const OTP_DUREE_MINUTES = 15; // Durée de validité du code
 
     /**
-     * Inscription publique.
-     * Le compte est créé avec le statut "en_attente" et NE connecte PAS l'utilisateur.
-     * Un administrateur devra valider le compte pour qu'il soit utilisable.
+     * ÉTAPE 1 : Valider le formulaire d'inscription et envoyer l'OTP par email.
+     * Ne crée PAS l'utilisateur (on attend la vérification).
      */
-    public function register(Request $request): JsonResponse
+    public function envoyerCode(Request $request): JsonResponse
     {
-        // Plafond de demandes en attente : empêche de saturer la file de validation
         if (Utilisateur::where('statut_compte', 'en_attente')->count() >= self::MAX_DEMANDES_EN_ATTENTE) {
-            return response()->json([
-                'message' => 'Trop de demandes en attente. Réessayez plus tard.',
-            ], 429);
+            return response()->json(['message' => 'Trop de demandes en attente. Réessayez plus tard.'], 429);
         }
 
         $data = $request->validate([
@@ -42,27 +42,77 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'confirmed', Password::min(10)->letters()->numbers()],
         ]);
 
-        // Le backend décide : rôle Employe, service Direction, statut en_attente
+        // Générer un code à 6 chiffres
+        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Stocker les données et le code en cache pendant 15 minutes
+        Cache::put('otp_inscription_' . Str::lower($data['email']), [
+            'code' => $code,
+            'donnees' => $data,
+        ], now()->addMinutes(self::OTP_DUREE_MINUTES));
+
+        // Envoyer l'email
+        Mail::to($data['email'])->send(new CodeVerificationMail($code));
+
+        return response()->json([
+            'message' => 'Un code de vérification a été envoyé à votre adresse email.',
+            // Décommenter la ligne ci-dessous UNIQUEMENT pour tester sans envoyer de vrai email :
+             'debug_code' => $code,
+        ]);
+    }
+
+    /**
+     * ÉTAPE 2 : Vérifier l'OTP et créer le compte (statut en_attente).
+     */
+    public function verifierCode(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+            'code'  => ['required', 'string', 'size:6'],
+        ]);
+
+        $cleCache = 'otp_inscription_' . Str::lower($data['email']);
+        $cache = Cache::get($cleCache);
+
+        if (!$cache) {
+            return response()->json(['message' => 'Code expiré ou email introuvable. Recommencez l\'inscription.'], 422);
+        }
+
+        if ($cache['code'] !== $data['code']) {
+            return response()->json(['message' => 'Le code saisi est incorrect.'], 422);
+        }
+
+        // Code bon : on récupère les données mises en cache
+        $donnees = $cache['donnees'];
+
+        // On vérifie une dernière fois que l'email n'a pas été pris entre temps
+        if (Utilisateur::where('email', $donnees['email'])->exists()) {
+            Cache::forget($cleCache);
+            return response()->json(['message' => 'Cet email est déjà utilisé.'], 422);
+        }
+
+        // Création du compte (reprend exactement votre logique initiale)
         $role    = Role::where('libelle', 'Employe')->firstOrFail();
         $service = Service::where('nom_service', 'Direction')->firstOrFail();
 
         $utilisateur = Utilisateur::create([
-            'nom'               => $data['nom'],
-            'prenom'            => $data['prenom'],
-            'email'             => $data['email'],
-            'code_poste'        => $data['code_poste'],
-            'mot_de_passe_hash' => $data['password'], // cast 'hashed' → hachage auto
+            'nom'               => $donnees['nom'],
+            'prenom'            => $donnees['prenom'],
+            'email'             => $donnees['email'],
+            'code_poste'        => $donnees['code_poste'],
+            'mot_de_passe_hash' => $donnees['password'], // cast 'hashed' hachage auto
             'code_service'      => $service->code_service,
             'code_role'         => $role->code_role,
             'statut_compte'     => 'en_attente',
-            // matricule : généré automatiquement par PostgreSQL (sequence)
         ]);
 
-        Audit::log('REGISTER', $utilisateur->matricule, 'Compte créé en attente de validation');
+        Audit::log('REGISTER', $utilisateur->matricule, 'Compte créé en attente (via vérification email)');
 
-        // Pas de Auth::login() : l'utilisateur N'EST PAS connecté
+        // On nettoie le cache
+        Cache::forget($cleCache);
+
         return response()->json([
-            'message' => 'Votre compte a été créé. Il est en attente de validation par un administrateur.',
+            'message' => 'Email vérifié avec succès. Votre compte est en attente de validation par un administrateur.',
             'statut'  => 'en_attente',
         ], 201);
     }
@@ -79,7 +129,6 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        // Limitation : 5 échecs par couple (email + IP) puis blocage de 5 minutes
         $cle = Str::lower($data['email']) . '|' . $request->ip();
         if (RateLimiter::tooManyAttempts($cle, self::MAX_TENTATIVES)) {
             $s = RateLimiter::availableIn($cle);
@@ -88,8 +137,6 @@ class AuthController extends Controller
 
         $connu = Utilisateur::where('email', $data['email'])->first();
 
-        // Un coût de hachage est toujours payé, même si l'e-mail est inconnu :
-        // le temps de réponse ne permet pas de deviner si le compte existe
         if ($connu) {
             $motDePasseOk = Hash::check($data['password'], $connu->getAuthPassword());
         } else {
@@ -102,11 +149,9 @@ class AuthController extends Controller
             if ($connu) {
                 Audit::log('LOGIN_ECHEC', $connu->matricule, 'Mot de passe incorrect');
             }
-            // Message volontairement générique : ne révèle pas si l'email existe
             return response()->json(['message' => 'Identifiants invalides.'], 422);
         }
 
-        // Mot de passe correct : on peut indiquer l'état du compte
         if ($connu->statut_compte === 'en_attente') {
             Audit::log('LOGIN_ECHEC', $connu->matricule, 'Compte en attente de validation');
             return response()->json([
@@ -123,7 +168,7 @@ class AuthController extends Controller
 
         RateLimiter::clear($cle);
         Auth::login($connu);
-        $request->session()->regenerate(); // protection contre la fixation de session
+        $request->session()->regenerate();
 
         $connu->forceFill(['derniere_connexion' => now()])->save();
         Audit::log('LOGIN', $connu->matricule);
@@ -145,7 +190,6 @@ class AuthController extends Controller
         return response()->json($this->presenter($request->user()));
     }
 
-    /** Ne renvoie que les champs utiles au frontend. */
     private function presenter(Utilisateur $u): array
     {
         $u->loadMissing('service', 'role', 'poste');

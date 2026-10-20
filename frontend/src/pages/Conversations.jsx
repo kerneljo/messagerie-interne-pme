@@ -7,9 +7,9 @@ import Discussion from '../components/Discussion'
 import NouvelleDiscussion from '../components/NouvelleDiscussion'
 import NotificationsMenu from '../components/NotificationsMenu'
 import { Chargement, EtatVide, LogoBulles } from '../components/ui'
+import api from '../api' // ← Ajout de l'import pour l'API
 
-/* En-tête de la colonne de droite quand aucune discussion n'est ouverte
-   (garde la cloche et l'alignement avec l'en-tête de la liste) */
+/* En-tête de la colonne de droite quand aucune discussion n'est ouverte */
 function EnteteVide() {
   return (
     <header className="flex h-16 shrink-0 items-center justify-end border-b border-slate-200/70 bg-papier px-4 md:px-6">
@@ -30,20 +30,36 @@ export default function Conversations() {
   const selection = reference ? Number(reference) : null
   const courante = conversations.find((c) => c.reference_conversation === selection)
 
-  // La fenêtre « Nouvelle discussion » est pilotée par l'adresse (?nouvelle=1) :
-  // le bouton de la barre latérale peut l'ouvrir et le bouton Précédent la ferme
+  // La fenêtre « Nouvelle discussion » est pilotée par l'adresse (?nouvelle=1)
   const nouvelleOuverte = new URLSearchParams(search).get('nouvelle') === '1'
   const ouvrirNouvelle = () => navigate({ pathname, search: '?nouvelle=1' })
   const fermerNouvelle = () => navigate({ pathname, search: '' }, { replace: true })
 
+  // ✅ Nouvelle fonction de suppression
+  const supprimerConversation = async (referenceConversation) => {
+    try {
+      // On suppose que la suppression ne retire que l'utilisateur de la conversation
+      await api.delete(`/api/conversations/${referenceConversation}/moi`)
+      
+      // Si c'était la conversation sélectionnée, on retourne à l'accueil
+      if (selection === referenceConversation) {
+        navigate('/conversations')
+      }
+      
+      // On recharge la liste depuis le backend
+      await recharger()
+    } catch (err) {
+      alert("Impossible de supprimer la conversation. Veuillez réessayer.")
+    }
+  }
+
   return (
-   <div className="relative flex h-full overflow-hidden bg-creme">
-      {/* ===== Colonne de gauche : liste des conversations, pleine hauteur ===== */}
+    <div className="relative flex h-full overflow-hidden bg-creme">
+      {/* ===== Colonne de gauche : liste des conversations ===== */}
       <section
         className={`${selection ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col border-r border-slate-200 bg-creme md:w-80 lg:w-96`}
       >
         <header className="flex h-16 shrink-0 items-center gap-2 border-b border-slate-200/70 bg-papier px-4 md:px-5">
-          {/* Bouton du menu mobile (la sidebar est cachée sous lg) */}
           <button
             type="button"
             onClick={ouvrirMenu}
@@ -72,11 +88,12 @@ export default function Conversations() {
             utilisateur={utilisateur}
             chargement={!pret}
             onSelection={(ref) => navigate(`/conversations/${ref}`)}
+            onSupprimer={supprimerConversation} // 👈 Ajout de la prop
           />
         </div>
       </section>
 
-      {/* ===== Colonne de droite : discussion (avec son en-tête) ou état vide ===== */}
+      {/* ===== Colonne de droite : discussion ou état vide ===== */}
       <section className={`${selection ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col bg-creme`}>
         {courante ? (
           <Discussion
@@ -119,10 +136,10 @@ export default function Conversations() {
       </section>
 
       {nouvelleOuverte && (
-  <div className="pointer-events-none absolute bottom-0 left-0 right-0 top-16 z-20 overflow-hidden md:left-80 lg:left-96">
-    <NouvelleDiscussion onFermer={fermerNouvelle} />
-  </div>
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 top-16 z-20 overflow-hidden md:left-80 lg:left-96">
+          <NouvelleDiscussion onFermer={fermerNouvelle} />
+        </div>
+      )}
+    </div>
   )
 }
-    </div>
-    )}
