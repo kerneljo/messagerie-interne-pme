@@ -296,7 +296,7 @@ export default function ParametresGroupe({ conversation, onRetour }) {
                   <button
                     type="button"
                     onClick={() => inputPhotoRef.current?.click()}
-                    className="absolute -bottom-1 -right-1 grid size-9 place-items-center rounded-full bg-piment-600 text-white shadow-md transition hover:bg-piment-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-piment-600"
+                    className="absolute -bottom-1 -right-1 grid size-9 place-items-center rounded-full bg-action-600 text-white shadow-md transition hover:bg-action-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-600"
                     aria-label="Changer la photo du groupe"
                   >
                     <Camera className="size-4" />
@@ -361,7 +361,7 @@ export default function ParametresGroupe({ conversation, onRetour }) {
                       type="button"
                       onClick={enregistrerInfos}
                       disabled={!aDesChangements || titreNettoye === '' || enCours}
-                      className="inline-flex items-center gap-2 rounded-full bg-piment-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-piment-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-full bg-action-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-action-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {enCours ? (
                         <span
@@ -573,7 +573,7 @@ export default function ParametresGroupe({ conversation, onRetour }) {
                 type="button"
                 onClick={ajouterMembres}
                 disabled={nouveaux.length === 0 || enCours}
-                className="inline-flex items-center gap-2 rounded-full bg-piment-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-piment-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-full bg-action-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-action-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {enCours && (
                   <span

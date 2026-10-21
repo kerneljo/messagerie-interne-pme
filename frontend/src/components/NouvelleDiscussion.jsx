@@ -721,7 +721,7 @@ export default function NouvelleDiscussion({ onFermer }) {
                 type="button"
                 onClick={creer}
                 disabled={!pret || envoi}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-piment-600 px-10 py-3.5 text-base font-semibold text-white shadow-lg shadow-piment-600/25 transition hover:bg-piment-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-piment-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-action-600 px-10 py-3.5 text-base font-semibold text-white shadow-lg shadow-action-600/25 transition hover:bg-action-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {envoi ? (
                   <>

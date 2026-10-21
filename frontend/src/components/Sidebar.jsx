@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Contact,
   FolderOpen,
@@ -7,11 +7,10 @@ import {
   LogOut,
   Bell,
   MessagesSquare,
-  PanelLeftClose,
-  PanelLeftOpen,
+  PanelLeft,
   ShieldCheck,
   ClipboardCheck,
-  SquarePen,
+  Search,
   X,
 } from 'lucide-react'
 import { useAuth } from '../AuthContext'
@@ -20,27 +19,20 @@ import { salleDe } from '../salle'
 import { Avatar } from './ui'
 import ConfirmationModal from './ConfirmationModal'
 
-const PAS = 58
-const HAUTEUR_SEPARATEUR = 44
+const LOGO = '/assets/fulmar-logo.png'
+const AFFICHER_RECHERCHE = false
 
-/*
- * Navigation organisée en sections.
- * - La première section n'a pas de titre.
- * - Les sections avec `reservee: true` ne s'affichent que pour l'administrateur.
- *
- * ORDRE : Tableau de bord en premier, puis Messagerie, puis les autres.
- */
 const SECTIONS = [
   {
     cle: 'espace-travail',
     titre: null,
     entrees: [
-      { cle: 'dashboard', to: '/', end: true, libelle: 'Tableau de bord', icone: LayoutDashboard },
-      { cle: 'conversations', to: '/conversations', libelle: 'Conversations', icone: MessagesSquare, badge: 'messagerie' },
-      { cle: 'a-traiter', to: '/a-traiter', libelle: 'À traiter', icone: ClipboardCheck, badge: 'actions' },
-      { cle: 'documents', to: '/documents', libelle: 'Documents', icone: FolderOpen }, 
-      { cle: 'notifications', to: '/notifications', libelle: 'Notifications', icone: Bell, badge: 'notifications' },
-      { cle: 'annuaire', to: '/annuaire', libelle: 'Annuaire', icone: Contact },
+      { cle: 'dashboard', to: '/', end: true, libelle: 'Tableau de bord', texteCourt: 'Accueil', icone: LayoutDashboard },
+      { cle: 'conversations', to: '/conversations', libelle: 'Conversations', texteCourt: 'Messages', icone: MessagesSquare, badge: 'messagerie' },
+      { cle: 'a-traiter', to: '/a-traiter', libelle: 'À traiter', texteCourt: 'Actions', icone: ClipboardCheck, badge: 'actions' },
+      { cle: 'documents', to: '/documents', libelle: 'Documents', texteCourt: 'Fichiers', icone: FolderOpen },
+      { cle: 'notifications', to: '/notifications', libelle: 'Notifications', texteCourt: 'Notifs', icone: Bell, badge: 'notifications' },
+      { cle: 'annuaire', to: '/annuaire', libelle: 'Annuaire', texteCourt: 'Annuaire', icone: Contact },
     ],
   },
   {
@@ -48,12 +40,11 @@ const SECTIONS = [
     titre: 'Système',
     reservee: true,
     entrees: [
-      { cle: 'admin', to: '/admin', libelle: 'Administration', icone: ShieldCheck },
+      { cle: 'admin', to: '/admin', libelle: 'Administration', texteCourt: 'Admin', icone: ShieldCheck },
     ],
   },
 ]
 
-// Entrée de navigation correspondant à l'URL (préfixe le plus long), sinon à la salle courante
 function trouverEntreeActive(entrees, pathname, salle) {
   let meilleure = null
   for (const e of entrees) {
@@ -63,16 +54,7 @@ function trouverEntreeActive(entrees, pathname, salle) {
   return meilleure ?? entrees.find((e) => e.cle === salle) ?? null
 }
 
-function Logo({ className }) {
-  return (
-    <svg viewBox="0 0 44 44" className={className} role="img" aria-label="Messagerie interne">
-      <rect x="2" y="4" width="26" height="22" rx="9" fill="#d1451f" />
-      <path d="M8 26 6 35l10-8Z" fill="#d1451f" />
-      <rect x="16" y="14" width="26" height="22" rx="9" fill="#ffc247" />
-      <path d="M36 36l3 7-9-7Z" fill="#ffc247" />
-    </svg>
-  )
-}
+const ANNEAU_FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A3D8D2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2925]'
 
 function Entree({ entree, actif, badge, replie, onClick }) {
   const Icone = entree.icone
@@ -82,33 +64,46 @@ function Entree({ entree, actif, badge, replie, onClick }) {
       end={entree.end}
       onClick={onClick}
       title={replie ? entree.libelle : undefined}
-      className={`relative z-10 mb-2.5 ml-3 flex h-12 items-center rounded-l-[22px] text-[15px] font-semibold transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-mangue-400 ${
-        replie ? 'justify-center px-0' : 'gap-3.5 pl-4 pr-5'
+      className={`group relative flex items-center rounded-xl transition-colors duration-200 ${ANNEAU_FOCUS} ${
+        replie 
+          ? 'h-[54px] flex-col justify-center gap-0.5 px-1' 
+          : 'h-11 gap-3 px-3'
       } ${
         actif
-          ? 'text-lagon-950 font-bold'
-          : 'text-white hover:bg-white/8'
+          ? 'bg-white/10 font-semibold text-white'
+          : 'font-medium text-white/70 hover:bg-white/5 hover:text-white'
       }`}
     >
-      <Icone className="size-5 shrink-0" />
-      {!replie && (
+      {actif && !replie && (
+        <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[#E95420]" />
+      )}
+
+      <Icone
+        className={`shrink-0 transition-colors ${
+          actif ? 'text-[#E95420]' : 'text-white/50 group-hover:text-white'
+        } size-5`}
+        aria-hidden="true"
+      />
+
+      {replie ? (
+        <span className="max-w-full truncate text-[9px] font-medium leading-tight">
+          {entree.texteCourt || entree.libelle}
+        </span>
+      ) : (
         <>
           <span className="flex-1 truncate">{entree.libelle}</span>
           {badge > 0 && (
-            <span
-              className={`rounded-full rounded-bl-[4px] px-2 py-0.5 text-xs font-bold ${
-                actif
-                  ? 'bg-lagon-950/15 text-lagon-950'
-                  : 'bg-mangue-400 text-lagon-950'
-              }`}
-            >
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E95420] px-1.5 text-[11px] font-bold text-white">
               {badge > 99 ? '99+' : badge}
             </span>
           )}
         </>
       )}
+
       {replie && badge > 0 && (
-        <span className="absolute right-3 top-2.5 size-2.5 rounded-full bg-piment-600 ring-2 ring-lagon-950" />
+        <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E95420] px-1 text-[9px] font-bold text-white ring-2 ring-[#0B2925]">
+          {badge > 99 ? '99+' : badge}
+        </span>
       )}
     </NavLink>
   )
@@ -118,9 +113,11 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
   const { utilisateur, deconnexion } = useAuth()
   const { conversationsNonLues } = useMessagerie()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
 
   const [confirmationOuverte, setConfirmationOuverte] = useState(false)
   const [deconnexionEnCours, setDeconnexionEnCours] = useState(false)
+  const [recherche, setRecherche] = useState('')
 
   const estAdmin = utilisateur?.role?.libelle === 'Administrateur'
   const salle = salleDe(pathname)
@@ -129,23 +126,10 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
     document.documentElement.dataset.salle = salle
   }, [salle])
 
-  // Sections visibles selon le rôle
   const sections = SECTIONS.filter((s) => !s.reservee || estAdmin)
-  const toutes = sections.flatMap((s) => s.entrees)
-  const entreeActive = trouverEntreeActive(toutes, pathname, salle)
+  const entreeActive = trouverEntreeActive(sections.flatMap((s) => s.entrees), pathname, salle)
 
-  // Position verticale de chaque entrée (pour l'onglet animé)
-  const positions = {}
-  let y = 0
-  for (const section of sections) {
-    if (section.titre) y += HAUTEUR_SEPARATEUR
-    for (const entree of section.entrees) {
-      positions[entree.cle] = y
-      y += PAS
-    }
-  }
-  const decalage = entreeActive ? positions[entreeActive.cle] : 0
-  const badges = { messagerie: conversationsNonLues.length, notifications: 0 }
+  const badges = { messagerie: conversationsNonLues.length }
 
   async function confirmerDeconnexion() {
     setDeconnexionEnCours(true)
@@ -157,112 +141,112 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
     }
   }
 
-  const IconeRepli = replie ? PanelLeftOpen : PanelLeftClose
+  function lancerRecherche(e) {
+    e.preventDefault()
+    if (recherche.trim()) {
+      navigate(`/conversations?q=${encodeURIComponent(recherche.trim())}`)
+      setRecherche('')
+      if (window.innerWidth < 1024) onFermer()
+    }
+  }
 
   return (
     <>
       {ouvert && (
-        <div className="fixed inset-0 z-30 bg-lagon-950/60 lg:hidden" onClick={onFermer} aria-hidden="true" />
+        <div className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden" onClick={onFermer} aria-hidden="true" />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex shrink-0 flex-col bg-lagon-950 transition-all duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex shrink-0 flex-col bg-[#0B2925] transition-all duration-200 lg:static lg:translate-x-0 ${
           replie ? 'w-20' : 'w-64'
         } ${ouvert ? 'translate-x-0' : '-translate-x-full'}`}
         aria-label="Navigation principale"
       >
-        {/* Marque */}
-        <div className={`flex items-center ${replie ? 'flex-col gap-3 pb-2 pt-5' : 'gap-3 px-5 pb-1 pt-6'}`}>
-          <Logo className={replie ? 'size-10' : 'size-11 shrink-0'} />
-          {!replie && (
-            <span className="flex-1">
-              <span className="block font-display text-xl leading-none font-extrabold text-white">Messagerie</span>
-              <span className="mt-1.5 block text-[11px] font-bold tracking-[0.2em] text-mangue-400">INTERNE</span>
-            </span>
-          )}
+        {/* ===== Marque (Logo + Nom) ===== */}
+        {!replie ? (
+          <div className="flex items-center gap-2 px-4 pt-6">
+            <img src={LOGO} alt="Fulmar" className="size-16 shrink-0 object-contain" />
+            <span className="flex-1 font-display text-xl font-extrabold leading-none text-white">Fulmar</span>
+            
+            <button
+              className={`rounded-lg p-1 text-white/60 transition-colors hover:bg-white/10 hover:text-white lg:hidden ${ANNEAU_FOCUS}`}
+              onClick={onFermer}
+              aria-label="Fermer le menu"
+            >
+              <X className="size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={onBasculerRepli}
+              className={`hidden rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white lg:flex ${ANNEAU_FOCUS}`}
+              aria-label="Replier le menu"
+              title="Replier"
+            >
+              <PanelLeft className="size-5" />
+            </button>
+          </div>
+        ) : (
+          // ✅ Modification : Logo et Bouton sur la même ligne avec un peu plus de marge à droite (pr-4)
+          <div className="flex items-center justify-between pl-3 pr-5 pt-4">
+            <img src={LOGO} alt="Fulmar" className="size-10 shrink-0 object-contain" />
+            <button
+              type="button"
+              onClick={onBasculerRepli}
+              className={`rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white ${ANNEAU_FOCUS}`}
+              aria-label="Déplier le menu"
+              title="Déplier"
+            >
+              <PanelLeft className="size-5" />
+            </button>
+          </div>
+        )}
 
-          <button
-            className="rounded-lg p-1 text-white/70 transition-colors hover:text-white lg:hidden"
-            onClick={onFermer}
-            aria-label="Fermer le menu"
-          >
-            <X className="size-5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={onBasculerRepli}
-            className="hidden rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/5 hover:text-white lg:flex"
-            aria-label={replie ? 'Déplier le menu' : 'Replier le menu'}
-            title={replie ? 'Déplier' : 'Replier'}
-          >
-            <IconeRepli className="size-5" />
-          </button>
-        </div>
-
-        {/* Action principale */}
-        <div className={replie ? 'flex justify-center pt-4' : 'px-4 pt-5'}>
-          <NavLink
-            to="/conversations?nouvelle=1"
-            onClick={onFermer}
-            title={replie ? 'Nouvelle discussion' : undefined}
-            className={`flex items-center justify-center bg-piment-600 font-bold text-white transition-colors hover:bg-piment-700 focus-visible:outline-2 focus-visible:outline-mangue-400 ${
-              replie
-                ? 'size-12 rounded-[18px_18px_18px_6px]'
-                : 'h-[54px] w-full gap-2.5 rounded-[22px_22px_22px_6px] text-[15px]'
-            }`}
-          >
-            <SquarePen className="size-5 shrink-0" />
-            {!replie && 'Nouvelle discussion'}
-          </NavLink>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-7" aria-label="Menu">
-          <div className="relative">
-            <span
-              aria-hidden="true"
-              className="onglet motion-reduce:transition-none"
-              style={{ transform: `translateY(${decalage}px)`, opacity: entreeActive ? 1 : 0 }}
-            />
-            {sections.map((section) => (
-              <Fragment key={section.cle}>
-                {section.titre && (
-                  <div className={`flex h-11 items-end pb-3 ${replie ? 'justify-center' : 'px-7'}`}>
-                    {replie ? (
-                      <span className="h-px w-8 bg-white/25" />
-                    ) : (
-                      <span className="text-[11px] font-bold tracking-[0.16em] text-white/70 uppercase">
-                        {section.titre}
-                      </span>
-                    )}
-                  </div>
-                )}
+        {/* ===== Navigation ===== */}
+        <nav className={`flex-1 overflow-y-auto overflow-x-hidden ${replie ? 'pt-4' : 'pt-8'}`} aria-label="Menu">
+          {sections.map((section, index) => (
+            <Fragment key={section.cle}>
+              {index > 0 && (
+                <div className={`my-3 border-t border-white/10 ${replie ? 'mx-3' : 'mx-6'}`} />
+              )}
+              
+              {section.titre && !replie && (
+                <div className="mb-2 flex h-8 items-end px-6">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/55">
+                    {section.titre}
+                  </span>
+                </div>
+              )}
+              {section.titre && replie && (
+                <div className="my-2 flex justify-center">
+                  <span className="h-px w-6 bg-white/20" />
+                </div>
+              )}
+              <div className={`px-2 ${replie ? 'space-y-1' : 'space-y-2'}`}>
                 {section.entrees.map((entree) => (
                   <Entree
                     key={entree.cle}
                     entree={entree}
                     actif={entree.cle === entreeActive?.cle}
-                    badge={entree.badge ? badges[entree.badge] : 0}
+                    badge={entree.badge ? badges[entree.badge] ?? 0 : 0}
                     replie={replie}
                     onClick={onFermer}
                   />
                 ))}
-              </Fragment>
-            ))}
-          </div>
+              </div>
+            </Fragment>
+          ))}
         </nav>
 
-        {/* Compte et déconnexion */}
-        <div className="border-t border-white/10 px-3 pb-5 pt-3">
+        {/* ===== Profil + déconnexion ===== */}
+        <div className="border-t border-white/10 px-3 pb-8 pt-3">
           {replie ? (
             <div className="flex flex-col items-center gap-2">
-              <NavLink to="/profil" onClick={onFermer} title="Mon compte">
+              <NavLink to="/profil" onClick={onFermer} title="Mon compte" className={`rounded-full ${ANNEAU_FOCUS}`}>
                 <Avatar prenom={utilisateur.prenom} nom={utilisateur.nom} taille="sm" photoUrl={utilisateur.photo_url} />
               </NavLink>
               <button
                 onClick={() => setConfirmationOuverte(true)}
-                className="rounded-lg p-2 text-white/80 transition-colors hover:bg-white/5 hover:text-white"
+                className={`rounded-lg p-2 text-white/60 transition-colors hover:bg-white/10 hover:text-white ${ANNEAU_FOCUS}`}
                 aria-label="Se déconnecter"
                 title="Se déconnecter"
               >
@@ -270,12 +254,12 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
               </button>
             </div>
           ) : (
-            <>
+            <div className="flex items-center gap-1">
               <NavLink
                 to="/profil"
                 onClick={onFermer}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors ${
+                  `flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2.5 py-2 transition-colors ${ANNEAU_FOCUS} ${
                     isActive ? 'bg-white/10' : 'hover:bg-white/5'
                   }`
                 }
@@ -285,17 +269,18 @@ export default function Sidebar({ ouvert, onFermer, replie, onBasculerRepli }) {
                   <p className="truncate text-sm font-semibold text-white">
                     {utilisateur.prenom} {utilisateur.nom}
                   </p>
-                  <p className="truncate text-xs text-white/80">{utilisateur.role.libelle}</p>
+                  <p className="truncate text-xs text-white/60">{utilisateur.role.libelle}</p>
                 </div>
               </NavLink>
               <button
                 onClick={() => setConfirmationOuverte(true)}
-                className="mt-2 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-white/90 transition-colors hover:bg-white/5 hover:text-white"
+                className={`shrink-0 rounded-lg p-2.5 text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400 ${ANNEAU_FOCUS}`}
+                aria-label="Se déconnecter"
+                title="Se déconnecter"
               >
                 <LogOut className="size-5" />
-                Se déconnecter
               </button>
-            </>
+            </div>
           )}
         </div>
       </aside>

@@ -27,7 +27,7 @@ export default function Header({ onMenu, refEmplacement }) {
       {/* Bouton du menu mobile */}
       <button
         type="button"
-        className="rounded-lg p-2 text-slate-700 transition-colors hover:bg-slate-900/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-piment-600 lg:hidden"
+        className="rounded-lg p-2 text-slate-700 transition-colors hover:bg-slate-900/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-600 lg:hidden"
         onClick={onMenu}
         aria-label="Ouvrir le menu"
       >

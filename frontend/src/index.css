@@ -11,8 +11,11 @@
   --color-lagon-800: #2d5a54;
   --color-lagon-300: #8fb0a9;
 
-  --color-piment-600: #d1451f;
-  --color-piment-700: #b23a19;
+  /* Couleur d'action (boutons principaux) : teal, bien distinct du rouge des erreurs.
+     Même famille que les liens et les anneaux de focus (indigo-*). */
+  --color-action-500: #1f8579;
+  --color-action-600: #0f6b63;
+  --color-action-700: #0c5751;
 
   --color-mangue-300: #ffd982;
   --color-mangue-400: #ffc247;
@@ -42,16 +45,17 @@
   --color-slate-900: #1e3a37;
   --color-slate-950: #142a28;
 
-  --color-blue-50: #fff1ea;
-  --color-blue-100: #ffe0d2;
-  --color-blue-200: #ffc4ab;
-  --color-blue-300: #ff9e7a;
-  --color-blue-400: #f2764c;
-  --color-blue-500: #e25a31;
-  --color-blue-600: #b83c1a;
-  --color-blue-700: #9c3015;
-  --color-blue-800: #8f2f16;
-  --color-blue-900: #6e2410;
+  /* « blue » pointe maintenant vers le teal d'action (avant : orange, trop proche du rouge des erreurs) */
+  --color-blue-50: #e8f6f4;
+  --color-blue-100: #cbeae6;
+  --color-blue-200: #a3d8d2;
+  --color-blue-300: #6fbdb5;
+  --color-blue-400: #3fa196;
+  --color-blue-500: #1f8579;
+  --color-blue-600: #0f6b63;
+  --color-blue-700: #0c5751;
+  --color-blue-800: #0a4440;
+  --color-blue-900: #08332f;
 
   --color-indigo-50: #e8f6f4;
   --color-indigo-100: #cbeae6;
@@ -78,8 +82,8 @@
   --color-lagon-800: #1a1a1a;
   --color-lagon-300: #4a4a4a;
 
-  --color-piment-600: #e8622e;
-  --color-piment-700: #d1451f;
+  --color-action-600: #1f8579;
+  --color-action-700: #176a60;
 
   --color-mangue-300: #4a3a1a;
   --color-mangue-400: #6b5426;
@@ -112,9 +116,6 @@
   --color-lagon-950: #1a1a1a;
   --color-lagon-800: #333333;
   --color-lagon-300: #999999;
-
-  --color-piment-600: #d1451f;
-  --color-piment-700: #b23a19;
 
   --color-mangue-300: #ffe9b3;
   --color-mangue-400: #ffd980;
@@ -212,6 +213,6 @@
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
   &:hover {
-    scrollbar-color: rgb(100 116 139 / 0.45) transparent;
+    scrollbar-color: rgb(45 90 84 / 0.45) transparent;
   }
 }

@@ -22,7 +22,7 @@ const TYPES_PHOTO = ['image/jpeg', 'image/png', 'image/webp']
 
 const NIVEAUX_MDP = [
   { label: 'En attente…', couleur: 'bg-slate-300' },
-  { label: 'Faible', couleur: 'bg-piment-600' },
+  { label: 'Faible', couleur: 'bg-action-600' },
   { label: 'Moyen', couleur: 'bg-mangue-500' },
   { label: 'Bon', couleur: 'bg-indigo-400' },
   { label: 'Excellent', couleur: 'bg-indigo-600' },
@@ -117,7 +117,7 @@ export default function Profil() {
         {/* Bandeau décoratif */}
         <div className="relative h-32 overflow-hidden rounded-t-[28px] bg-lagon-950 sm:h-40">
           <div aria-hidden="true" className="absolute inset-0">
-            <span className="absolute -right-8 -top-14 size-52 rotate-12 rounded-[38%] bg-piment-600/70" />
+            <span className="absolute -right-8 -top-14 size-52 rotate-12 rounded-[38%] bg-action-600/70" />
             <span className="absolute right-44 top-12 size-32 -rotate-6 rounded-[38%] bg-mangue-400/60" />
             <span className="absolute -bottom-20 -left-10 size-56 rounded-full bg-lagon-800" />
             <span className="absolute left-1/3 top-6 size-20 rotate-45 rounded-[38%] bg-lagon-800/80" />
@@ -155,7 +155,7 @@ export default function Profil() {
               onClick={() => setOnglet(id)}
                            className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
                 selectionne
-                  ? 'rounded-bl-[5px] bg-piment-600 text-white shadow-md'
+                  ? 'rounded-bl-[5px] bg-action-600 text-white shadow-md'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
@@ -695,7 +695,7 @@ function CarteTheme({ theme, selectionne, onSelectionner }) {
       aria-pressed={selectionne}
       className={`group relative overflow-hidden rounded-3xl bg-papier p-3 text-left shadow-sm transition-shadow duration-300 ${
         selectionne
-          ? 'shadow-xl ring-2 ring-piment-600'
+          ? 'shadow-xl ring-2 ring-action-600'
           : 'ring-1 ring-slate-200/70 hover:shadow-lg hover:ring-slate-300'
       }`}
     >
@@ -728,7 +728,7 @@ function CarteTheme({ theme, selectionne, onSelectionner }) {
       </div>
 
       {selectionne && (
-        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-piment-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg">
+        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-action-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg">
           <Check className="size-3" strokeWidth={3} />
           Actif
         </span>

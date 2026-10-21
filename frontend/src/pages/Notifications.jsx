@@ -275,7 +275,7 @@ function CarteNotification({ n, enCours, onMarquerLue }) {
             {config.libelle}
           </span>
           {!n.est_lue && (
-            <span className="size-1.5 rounded-full bg-piment-600" aria-label="Non lue" />
+            <span className="size-1.5 rounded-full bg-action-600" aria-label="Non lue" />
           )}
         </div>
 

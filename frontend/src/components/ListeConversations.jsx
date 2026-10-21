@@ -193,7 +193,7 @@ export default function ListeConversations({
                       {actif && (
                         <span
                           aria-hidden="true"
-                          className="absolute inset-y-3 left-1 w-1 rounded-full bg-piment-600"
+                          className="absolute inset-y-3 left-1 w-1 rounded-full bg-action-600"
                         />
                       )}
 
@@ -209,7 +209,7 @@ export default function ListeConversations({
                           <span className={`truncate text-sm ${nonLus ? 'font-bold text-slate-900' : 'font-semibold text-slate-800'}`}>
                             {c.titre}
                           </span>
-                          <span className={`shrink-0 text-[11px] ${nonLus ? 'font-semibold text-piment-600' : 'text-slate-500'}`}>
+                          <span className={`shrink-0 text-[11px] ${nonLus ? 'font-semibold text-action-600' : 'text-slate-500'}`}>
                             {heureCourte(c.derniere_activite)}
                           </span>
                         </div>
@@ -230,7 +230,7 @@ export default function ListeConversations({
 
                           {nonLus && (
                             <span
-                              className="flex min-w-[20px] shrink-0 items-center justify-center rounded-full bg-piment-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm"
+                              className="flex min-w-[20px] shrink-0 items-center justify-center rounded-full bg-action-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm"
                               aria-label={`${c.non_lus} non lus`}
                             >
                               {c.non_lus > 99 ? '99+' : c.non_lus}

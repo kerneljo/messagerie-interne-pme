@@ -63,7 +63,7 @@ export default function Conversations() {
           <button
             type="button"
             onClick={ouvrirMenu}
-            className="rounded-lg p-2 text-slate-700 transition-colors hover:bg-slate-900/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-piment-600 lg:hidden"
+            className="rounded-lg p-2 text-slate-700 transition-colors hover:bg-slate-900/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-600 lg:hidden"
             aria-label="Ouvrir le menu"
           >
             <Menu className="size-5" aria-hidden="true" />
@@ -73,7 +73,7 @@ export default function Conversations() {
           <button
             type="button"
             onClick={ouvrirNouvelle}
-            className="flex size-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-piment-600"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-600"
             aria-label="Nouvelle discussion"
             title="Nouvelle discussion"
           >
@@ -123,7 +123,7 @@ export default function Conversations() {
                   <button
                     type="button"
                     onClick={ouvrirNouvelle}
-                    className="mt-2 inline-flex items-center gap-2 rounded-lg bg-piment-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-piment-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-piment-600"
+                    className="mt-2 inline-flex items-center gap-2 rounded-lg bg-action-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-action-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-600"
                   >
                     <SquarePen className="size-4" aria-hidden="true" />
                     Nouvelle discussion

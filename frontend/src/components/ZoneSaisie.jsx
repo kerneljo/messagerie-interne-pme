@@ -228,7 +228,7 @@ export default function ZoneSaisie({
         autoCorrect="off"
         autoCapitalize="sentences"
         style={{ minHeight: hauteurMin }}
-        className="defilement-fin block max-h-[200px] w-full resize-none overflow-y-auto bg-transparent px-5 pb-1 pt-4 text-[15px] leading-6 text-slate-900 caret-piment-600 placeholder-slate-500 focus:outline-none"
+        className="defilement-fin block max-h-[200px] w-full resize-none overflow-y-auto bg-transparent px-5 pb-1 pt-4 text-[15px] leading-6 text-slate-900 caret-action-600 placeholder-slate-500 focus:outline-none"
       />
 
       <div className="flex items-center gap-1 px-3 pb-3 pt-1">
@@ -275,7 +275,7 @@ export default function ZoneSaisie({
             transition={{ type: 'spring', stiffness: 500, damping: 18 }}
             title={libelleEnvoi}
             aria-label={libelleEnvoi}
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-piment-600 text-white shadow-sm transition-colors hover:bg-piment-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-piment-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-action-600 text-white shadow-sm transition-colors hover:bg-action-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
           >
             {envoi ? (
               <span
