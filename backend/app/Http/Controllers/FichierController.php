@@ -29,4 +29,35 @@ class FichierController extends Controller
             ['X-Content-Type-Options' => 'nosniff']
         );
     }
+
+    /**
+     * Aperçu d'une image (via URL signée, accessible sans token).
+     */
+    public function preview(Request $request, Fichier $fichier): Response
+    {
+        // Vérification de la signature (sécurisé)
+        if (! $request->hasValidSignature()) {
+            abort(403, 'Lien expiré ou invalide.');
+        }
+
+        $message = $fichier->message;
+        abort_if($message === null, 404);
+
+        // Vérification que c'est bien une image
+        if (! str_starts_with($fichier->type_mime, 'image/')) {
+            abort(404);
+        }
+
+        abort_unless(Storage::disk('local')->exists($fichier->nom_stocke), 404);
+
+        return Storage::disk('local')->response(
+            $fichier->nom_stocke,
+            $fichier->nom_original,
+            [
+                'Content-Type' => $fichier->type_mime,
+                'Cache-Control' => 'public, max-age=86400',
+                'X-Content-Type-Options' => 'nosniff',
+            ]
+        );
+    }
 }

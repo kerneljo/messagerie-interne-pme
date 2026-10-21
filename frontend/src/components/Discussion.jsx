@@ -721,34 +721,40 @@ export default function Discussion({ conversation, onLu, onRetour }) {
                         debutJour ? 'mt-1' : premier ? 'mt-3' : 'mt-0.5'
                       } ${estCourant ? 'bg-white/50' : correspond ? 'bg-white/20' : ''}`}
                     >
-                      <BulleAnimee>
-                        {etiquette && (
-                          <div className={`mb-1 flex ${moi ? 'justify-end' : 'justify-start'}`}>
-                            <EtiquetteCategorie message={m} moi={moi} />
-                          </div>
-                        )}
+                     {/* ✅ Conteneur qui empile l'étiquette et la bulle */}
+<div className={`flex flex-col ${moi ? 'items-end' : 'items-start'}`}>
+  
+  {/* L'étiquette est au-dessus, alignée du même côté que la bulle */}
+  {etiquette && (
+    <div className="mb-1 mr-1">
+      <EtiquetteCategorie message={m} moi={moi} />
+    </div>
+  )}
 
-                        <Bulle
-                          m={m}
-                          moi={moi}
-                          conversation={conversation}
-                          premierDuGroupe={premier}
-                          onRepondre={(msg) => { setEdition(null); setReponseA(msg); requestAnimationFrame(() => textareaRef.current?.focus()) }}
-                          onModifier={modifier}
-                          onSupprimer={supprimer}
-                          onReagir={reagir}
-                          onOuvrirEmoji={ouvrirPickerEmoji}
-                        />
+  {/* La bulle est en dessous */}
+  <BulleAnimee>
+    <Bulle
+      m={m}
+      moi={moi}
+      conversation={conversation}
+      premierDuGroupe={premier}
+      onRepondre={(msg) => { setEdition(null); setReponseA(msg); requestAnimationFrame(() => textareaRef.current?.focus()) }}
+      onModifier={modifier}
+      onSupprimer={supprimer}
+      onReagir={reagir}
+      onOuvrirEmoji={ouvrirPickerEmoji}
+    />
 
-                        <BandeauEngagement
-                          message={m}
-                          moi={moi}
-                          enCours={accuseEnCours === m.reference_message}
-                          onAccuser={(statut) => accuser(m, statut)}
-                          onSuivre={() => setSuiviPour(m)}
-                          onVersions={() => setVersionsPour(m)}
-                        />
-                      </BulleAnimee>
+    <BandeauEngagement
+      message={m}
+      moi={moi}
+      enCours={accuseEnCours === m.reference_message}
+      onAccuser={(statut) => accuser(m, statut)}
+      onSuivre={() => setSuiviPour(m)}
+      onVersions={() => setVersionsPour(m)}
+    />
+  </BulleAnimee>
+</div>
                     </div>
                   )
                 })}

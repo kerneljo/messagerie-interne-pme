@@ -23,6 +23,8 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/inscription/envoyer-code', [AuthController::class, 'envoyerCode']);
 Route::post('/inscription/verifier-code', [AuthController::class, 'verifierCode']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/fichiers/{fichier}/preview', [FichierController::class, 'preview'])
+    ->name('fichiers.preview');
 Route::get('/postes', [PosteController::class, 'index']);
 Route::get('/roles', fn() => response()->json(App\Models\Role::orderBy('libelle')->get(['code_role', 'libelle'])));
 Route::get('/services', fn() => response()->json(App\Models\Service::orderBy('nom_service')->get(['code_service', 'nom_service'])));
