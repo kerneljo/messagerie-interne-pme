@@ -6,6 +6,8 @@ use App\Events\MessageEnvoye;
 use App\Events\UtilisateurEcrit;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Notification;
+use App\Models\Utilisateur;
 use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -136,6 +138,79 @@ class MessageController extends Controller
                 "fichier #{$f->reference_fichier} ({$f->nom_original}) dans message #{$message->reference_message}");
         }
 
+        // ✅ Génération de notifications claires et explicites
+        if ($categorie !== 'NORMAL') {
+            // Correction de l'ambiguïté sur la colonne matricule
+            $destinataires = $conversation->participants()
+                ->where('participant.matricule', '!=', $u->matricule)
+                ->pluck('participant.matricule');
+
+            // Préparation du texte de la notification
+            $nomExpediteur = trim($u->prenom . ' ' . $u->nom);
+            $contexte = $conversation->type === 'DIRECT' ? '' : " dans le groupe {$conversation->titre}";
+
+            $libelleCategorie = match($categorie) {
+                'URGENT' => 'un message urgent',
+                'ACTION_REQUISE' => 'une action requise',
+                'INFORMATION' => 'une information',
+                default => 'un message',
+            };
+
+            // Si le message contient du texte, on l'affiche. Sinon, on indique une pièce jointe.
+            $apercuContenu = $contenu !== '' ? ": « " . Str::limit($contenu, 100) . " »" : " avec une pièce jointe.";
+
+            $extrait = "{$nomExpediteur} vous a envoyé {$libelleCategorie}{$contexte}{$apercuContenu}";
+
+            $typeNotif = match($categorie) {
+                'URGENT', 'ACTION_REQUISE' => 'action_requise',
+                'INFORMATION' => 'information',
+                default => 'message',
+            };
+
+            foreach ($destinataires as $matricule) {
+                Notification::create([
+                    'matricule_destinataire' => $matricule,
+                    'type' => $typeNotif,
+                    'reference_message' => $message->reference_message,
+                    'reference_conversation' => $conversation->reference_conversation,
+                    'extrait' => Str::limit($extrait, 250), // Limite de sécurité pour la BDD
+                    'est_lue' => false,
+                    'date_creation' => now(),
+                ]);
+            }
+        }
+
+        // ✅ Détection des mentions @
+        if ($contenu !== '' && preg_match_all('/@([\wÀ-ÿ]+(?:\s+[\wÀ-ÿ]+)*)/', $contenu, $matches)) {
+            foreach ($matches[1] as $nomComplet) {
+                $mentionne = Utilisateur::whereRaw(
+                    "CONCAT(prenom, ' ', nom) = ?", [trim($nomComplet)]
+                )->first();
+
+                if ($mentionne && $mentionne->matricule !== $u->matricule) {
+                    // Eviter les doublons si le destinataire a deja recu une notif pour ce message
+                    $existe = Notification::where('matricule_destinataire', $mentionne->matricule)
+                        ->where('reference_message', $message->reference_message)
+                        ->exists();
+
+                    if (! $existe) {
+                        $nomExpediteur = trim($u->prenom . ' ' . $u->nom);
+                        $contexte = $conversation->type === 'DIRECT' ? '' : " dans le groupe {$conversation->titre}";
+                        
+                        Notification::create([
+                            'matricule_destinataire' => $mentionne->matricule,
+                            'type' => 'mention',
+                            'reference_message' => $message->reference_message,
+                            'reference_conversation' => $conversation->reference_conversation,
+                            'extrait' => Str::limit("{$nomExpediteur} vous a mentionné{$contexte} : « " . Str::limit($contenu, 100) . " »", 250),
+                            'est_lue' => false,
+                            'date_creation' => now(),
+                        ]);
+                    }
+                }
+            }
+        }
+
         // Diffusion temps réel aux autres participants
         broadcast(new MessageEnvoye($message))->toOthers();
 
@@ -219,11 +294,6 @@ class MessageController extends Controller
         return response()->noContent();
     }
 
-    /**
-     * Pour les messages qui attendent un accusé : MA prise en compte (si je suis destinataire)
-     * ou le résumé du suivi (si je suis l'expéditeur). Une seule requête pour tous les messages.
-     * Renvoie un tableau indexé par reference_message.
-     */
     private static function enrichir(Collection $messages, int $moi, Conversation $conversation): array
     {
         $concernes = $messages->filter(

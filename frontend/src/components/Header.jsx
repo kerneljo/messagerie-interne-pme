@@ -16,7 +16,7 @@ function titrePage(chemin) {
     return 'Conversations'
   }
 
-  return TITRES[chemin] ?? 'Messagerie interne'
+  return TITRES[chemin] ?? 'Fulmar'
 }
 
 export default function Header({ onMenu, refEmplacement }) {

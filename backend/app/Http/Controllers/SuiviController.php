@@ -155,8 +155,8 @@ class SuiviController extends Controller
 
     /**
      * « À traiter » : les messages qui m'attendent.
-     * - URGENT : tant que je n'ai pas accusé réception
-     * - ACTION_REQUISE : tant que je ne l'ai pas marqué comme fait
+     * - URGENT : tant que je n'ai pas marqué "PRIS_EN_COMPTE" ou "FAIT"
+     * - ACTION_REQUISE : tant que je n'ai pas marqué "FAIT"
      */
     public function actions(Request $request): JsonResponse
     {
@@ -176,8 +176,12 @@ class SuiviController extends Controller
                     ->whereColumn('prise_en_compte.reference_message', 'message.reference_message')
                     ->where('prise_en_compte.matricule', $moi)
                     ->where(function ($w) {
+                        // ✅ CORRECTION : on n'exclut pas les URGENT non lus
                         $w->where('prise_en_compte.statut', 'FAIT')
-                            ->orWhere('message.categorie', 'URGENT');
+                            ->orWhere(function ($q) {
+                                $q->where('prise_en_compte.statut', 'PRIS_EN_COMPTE')
+                                    ->where('message.categorie', 'URGENT');
+                            });
                     });
             })
             ->with(['expediteur', 'conversation.participants'])

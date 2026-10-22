@@ -249,15 +249,6 @@ export default function ATraiter() {
   const nbUrgent = compteurs.urgent
   const nbAujourdhui = actives.filter((a) => sectionDe(a, maintenant) === 'aujourdhui').length
 
-  // Compteur dans l'onglet du navigateur
-  useEffect(() => {
-    const ancien = document.title
-    document.title = restantes > 0 ? `(${restantes}) À traiter` : 'À traiter'
-    return () => {
-      document.title = ancien
-    }
-  }, [restantes])
-
   /* ---------- Actions ---------- */
   function retirerToast(ref) {
     setToasts((t) => t.filter((x) => x.ref !== ref))

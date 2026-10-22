@@ -239,7 +239,6 @@ export default function Notifications() {
 
   /* ---------- Rendu ---------- */
   return (
-    // ✅ Suppression du padding-top
     <div className="w-full pb-24">
       
       {/* En-tête (bouton "Tout marquer comme lu") */}
@@ -256,7 +255,7 @@ export default function Notifications() {
         </header>
       )}
 
-      {/* ✅ Barre d'outils sticky collée en haut */}
+      {/* Barre d'outils sticky */}
       <div className="sticky top-0 z-10 mb-5 flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:px-6">
         <div
           role="tablist"
@@ -463,7 +462,7 @@ function EtatVide({ onglet, filtreActif, onReinitialiser }) {
 }
 
 /* ============================================================
-   Carte de notification
+   Carte de notification (Améliorée)
    ============================================================ */
 function CarteNotification({ n, enCours, onMarquerLue }) {
   const config = TYPES[n.type] ?? TYPES.message
@@ -473,10 +472,11 @@ function CarteNotification({ n, enCours, onMarquerLue }) {
 
   const contenu = (
     <div
-      className={`relative flex items-center gap-4 px-4 py-3.5 ${
-        n.est_lue ? '' : 'bg-lagon-50/40'
+      className={`relative flex items-start gap-4 px-4 py-4 ${
+        n.est_lue ? '' : 'bg-indigo-50/30'
       }`}
     >
+      {/* Barre de couleur sur le côté pour les non-lues */}
       {!n.est_lue && (
         <span
           className={`absolute inset-y-0 left-0 w-1 ${config.barre}`}
@@ -484,6 +484,7 @@ function CarteNotification({ n, enCours, onMarquerLue }) {
         />
       )}
 
+      {/* Icône du type */}
       <span
         className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${config.couleur}`}
         aria-hidden="true"
@@ -491,60 +492,64 @@ function CarteNotification({ n, enCours, onMarquerLue }) {
         <Icone className="size-5" />
       </span>
 
+      {/* Contenu textuel */}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${config.couleur}`}>
+          {/* Étiquette du type discrète */}
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${config.couleur}`}>
             {config.libelle}
           </span>
+          {urgente && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-700">
+              Prioritaire
+            </span>
+          )}
           {!n.est_lue && <span className="sr-only">Non lue</span>}
         </div>
 
+        {/* Texte de la notification (phrases complètes) */}
         <p
-          className={`mt-1 line-clamp-2 text-sm ${
-            n.est_lue ? 'text-slate-600' : 'font-semibold text-slate-900'
+          className={`mt-2 text-sm leading-relaxed ${
+            n.est_lue ? 'text-slate-600' : 'text-slate-900'
           }`}
         >
           {n.extrait ?? 'Nouvelle activité'}
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
+      {/* Colonne de droite : Date, bouton, chevron */}
+      <div className="flex shrink-0 flex-col items-end gap-2 pt-1">
         <time
           dateTime={n.date_creation}
           title={dateComplete(n.date_creation)}
-          className="hidden text-xs text-slate-500 sm:block"
+          className="text-[11px] text-slate-400"
         >
           {formaterDateRelative(n.date_creation)}
         </time>
 
-        {urgente && aLien && (
-          <span className="hidden rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white md:inline-block">
-            Traiter
-          </span>
-        )}
-
-        {!n.est_lue && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              onMarquerLue()
-            }}
-            disabled={enCours}
-            className="flex size-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-50"
-            aria-label="Marquer comme lue"
-            title="Marquer comme lue"
-          >
-            {enCours ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Check className="size-4" aria-hidden="true" />
-            )}
-          </button>
-        )}
-
-        {aLien && <ChevronRight className="size-4 text-slate-300" aria-hidden="true" />}
+        <div className="flex items-center gap-2">
+          {!n.est_lue && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onMarquerLue()
+              }}
+              disabled={enCours}
+              className="flex size-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-indigo-600 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-50"
+              aria-label="Marquer comme lue"
+              title="Marquer comme lue"
+            >
+              {enCours ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+              ) : (
+                <Check className="size-4" aria-hidden="true" />
+              )}
+            </button>
+          )}
+          {aLien && <ChevronRight className="size-4 text-slate-300" aria-hidden="true" />}
+        </div>
       </div>
     </div>
   )

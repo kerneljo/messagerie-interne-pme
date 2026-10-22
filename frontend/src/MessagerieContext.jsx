@@ -26,7 +26,7 @@ export function MessagerieProvider({ children }) {
   const nonLus = useMemo(() => conversations.reduce((total, c) => total + c.non_lus, 0), [conversations])
 
   useEffect(() => {
-    document.title = nonLus > 0 ? `(${nonLus}) Messagerie interne` : 'Messagerie interne'
+    document.title = nonLus > 0 ? `(${nonLus}) Fulmar` : 'Fulmar'
   }, [nonLus])
 
   const valeur = useMemo(

@@ -63,13 +63,17 @@ class NotificationController extends Controller
             'date_lecture' => now(),
         ]);
 
-        return response()->noContent();
+        // ✅ Correction : retourner du JSON au lieu de noContent()
+        return response()->json([
+            'message' => 'Notification marquée comme lue.',
+            'notification' => $this->presenter($notification->fresh()),
+        ]);
     }
 
     /** Marque toutes les notifications comme lues, sauf les actions requises. */
     public function toutMarquerLues(Request $request): JsonResponse
     {
-        Notification::where('matricule_destinataire', $request->user()->matricule)
+        $nombre = Notification::where('matricule_destinataire', $request->user()->matricule)
             ->where('est_lue', false)
             ->whereNotIn('type', ['action_requise', 'urgent'])  // on ne touche pas aux actions
             ->update([
@@ -77,7 +81,11 @@ class NotificationController extends Controller
                 'date_lecture' => now(),
             ]);
 
-        return response()->noContent();
+        // ✅ Correction : retourner du JSON au lieu de noContent()
+        return response()->json([
+            'message' => 'Toutes les notifications ont été marquées comme lues.',
+            'nombre' => $nombre,
+        ]);
     }
 
     private function presenter(Notification $n): array
