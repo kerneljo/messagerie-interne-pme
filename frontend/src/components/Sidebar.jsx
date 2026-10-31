@@ -1,16 +1,19 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Bell,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   Contact,
   FolderOpen,
   LayoutDashboard,
   LogOut,
   MessagesSquare,
-  PanelLeft,
   Search,
   ShieldCheck,
+  Users,
   X,
 } from 'lucide-react'
 import api from '../api'
@@ -22,9 +25,8 @@ import ConfirmationModal from './ConfirmationModal'
 
 const LOGO = '/assets/fulmar-logo.png'
 const AFFICHER_RECHERCHE = false
+const NB_RECENTS = 4
 
-// Les pages peuvent demander un rafraîchissement immédiat des pastilles :
-// window.dispatchEvent(new Event('fulmar:badges'))
 const EVENEMENT_BADGES = 'fulmar:badges'
 const INTERVALLE_BADGES = 60_000
 const DELAI_MIN_BADGES = 10_000
@@ -38,7 +40,7 @@ const SECTIONS = [
       { cle: 'conversations', to: '/conversations', libelle: 'Conversations', texteCourt: 'Messages', icone: MessagesSquare, badge: 'messagerie' },
       { cle: 'a-traiter', to: '/a-traiter', libelle: 'À traiter', texteCourt: 'Actions', icone: ClipboardCheck, badge: 'actions' },
       { cle: 'documents', to: '/documents', libelle: 'Documents', texteCourt: 'Fichiers', icone: FolderOpen },
-      { cle: 'notifications', to: '/notifications', libelle: 'Notifications', texteCourt: 'Notifs', icone: Bell, badge: 'notifications' },
+      { cle: 'notifications', to: '/notifications', libelle: 'Notifications', texteCourt: 'Alertes', icone: Bell, badge: 'notifications' },
       { cle: 'annuaire', to: '/annuaire', libelle: 'Annuaire', texteCourt: 'Annuaire', icone: Contact },
     ],
   },
@@ -51,6 +53,9 @@ const SECTIONS = [
     ],
   },
 ]
+
+const COULEUR_ACTIF = '#2563EB'
+const COULEUR_BOUTON_REPLI = '#22C55E' // Vert de la maquette
 
 const ANNEAU_FOCUS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A3D8D2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2925]'
@@ -71,7 +76,6 @@ function estSaisie(cible) {
   return ['INPUT', 'SELECT', 'TEXTAREA'].includes(cible?.tagName) || cible?.isContentEditable
 }
 
-/** true quand l'écran est de type bureau (≥ 1024 px). */
 function useBureau() {
   const requete = '(min-width: 1024px)'
   const [bureau, setBureau] = useState(() => window.matchMedia(requete).matches)
@@ -84,11 +88,6 @@ function useBureau() {
   return bureau
 }
 
-/**
- * Compteurs des pastilles « À traiter » et « Notifications ».
- * Rafraîchis : au montage, à chaque changement de page, toutes les 60 s,
- * au retour sur l'onglet et sur demande (événement « fulmar:badges »).
- */
 function useCompteurs(actif, pathname) {
   const [compteurs, setCompteurs] = useState({
     actions: { n: 0, urgent: false },
@@ -147,12 +146,24 @@ function useCompteurs(actif, pathname) {
     }
   }, [actif, charger])
 
-  // Changement de page : on actualise (limité à 1 fois / 10 s)
   useEffect(() => {
     if (actif) charger()
   }, [actif, pathname, charger])
 
   return compteurs
+}
+
+function infoConversation(c, moi) {
+  if (c.type === 'DIRECT') {
+    const autre = c.participants?.find((p) => p.matricule !== moi?.matricule)
+    return {
+      prenom: autre?.prenom ?? c.titre ?? '',
+      nom: autre?.nom ?? '',
+      photo: autre?.photo_url ?? null,
+      groupe: false,
+    }
+  }
+  return { prenom: c.titre || 'Groupe', nom: '', photo: c.photo_url ?? null, groupe: true }
 }
 
 /* ============================================================
@@ -178,54 +189,178 @@ function Pastille({ valeur, urgent, compacte }) {
 }
 
 /* ============================================================
+   Infobulle (mode replié)
+   Rendue dans <body> via un portail : le <nav> a overflow-x-hidden,
+   une infobulle posée à l'intérieur serait coupée.
+   ============================================================ */
+function InfoBulle({ texte, actif, children, className = 'block' }) {
+  const [pos, setPos] = useState(null)
+
+  useEffect(() => {
+    if (!actif) setPos(null)
+  }, [actif])
+
+  const afficher = (e) => {
+    if (!actif || !texte) return
+    const r = e.currentTarget.getBoundingClientRect()
+    setPos({ top: r.top + r.height / 2, left: r.right + 12 })
+  }
+  const masquer = () => setPos(null)
+
+  return (
+    <div
+      className={className}
+      onMouseEnter={afficher}
+      onMouseLeave={masquer}
+      onFocus={afficher}
+      onBlur={masquer}
+    >
+      {children}
+      {pos &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{ top: pos.top, left: pos.left }}
+            className="pointer-events-none fixed z-[60] -translate-y-1/2 whitespace-nowrap rounded-lg bg-[#123B35] px-3 py-1.5 text-xs font-medium text-white shadow-lg ring-1 ring-white/10"
+          >
+            {texte}
+          </div>,
+          document.body,
+        )}
+    </div>
+  )
+}
+
+/* ============================================================
    Entrée de navigation
    ============================================================ */
 function Entree({ entree, actif, badge, replie, onClick }) {
   const Icone = entree.icone
   const valeur = badge?.n ?? 0
-  const titre = replie ? (valeur > 0 ? `${entree.libelle} (${valeur})` : entree.libelle) : undefined
+  const texteInfo = valeur > 0 ? `${entree.libelle} (${valeur})` : entree.libelle
 
   return (
-    <NavLink
-      to={entree.to}
-      end={entree.end}
-      onClick={onClick}
-      title={titre}
-      className={`group relative flex items-center rounded-xl transition-colors duration-200 ${ANNEAU_FOCUS} ${
-        replie ? 'h-14 flex-col justify-center gap-0.5 px-1' : 'h-11 gap-3 px-3'
-      } ${
-        actif
-          ? 'bg-white/10 font-semibold text-white'
-          : 'font-medium text-white/70 hover:bg-white/5 hover:text-white'
-      }`}
-    >
-      {actif && (
-        <span
-          className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[#E95420]"
+    <InfoBulle texte={texteInfo} actif={replie}>
+      <NavLink
+        to={entree.to}
+        end={entree.end}
+        onClick={onClick}
+        className={`group relative flex items-center rounded-xl transition-colors duration-200 ${ANNEAU_FOCUS} ${
+          replie ? 'h-14 flex-col justify-center gap-0.5 px-1' : 'h-11 gap-3 px-3'
+        } ${
+          actif
+            ? 'bg-white/10 font-semibold text-white'
+            : 'font-medium text-white/70 hover:bg-white/5 hover:text-white'
+        }`}
+      >
+        {actif && (
+          <span
+            className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full"
+            style={{ backgroundColor: COULEUR_ACTIF }}
+            aria-hidden="true"
+          />
+        )}
+
+        <Icone
+          className="size-5 shrink-0 transition-colors"
+          style={{ color: actif ? COULEUR_ACTIF : undefined }}
           aria-hidden="true"
         />
+
+        {replie ? (
+          <span className="max-w-full truncate text-[11px] font-medium leading-tight">
+            {entree.texteCourt || entree.libelle}
+          </span>
+        ) : (
+          <>
+            <span className="flex-1 truncate">{entree.libelle}</span>
+            <Pastille valeur={valeur} urgent={badge?.urgent} />
+          </>
+        )}
+
+        {replie && <Pastille valeur={valeur} urgent={badge?.urgent} compacte />}
+      </NavLink>
+    </InfoBulle>
+  )
+}
+
+/* ============================================================
+   Section « Récents »
+   ============================================================ */
+function Recents({ conversations, moi, replie, onClick }) {
+  const liste = (conversations ?? []).slice(0, NB_RECENTS)
+  if (liste.length === 0) return null
+
+  return (
+    <section aria-label="Conversations récentes" className={replie ? 'mt-3' : 'mt-4'}>
+      {/* Replié : un séparateur remplace le titre « Récents » */}
+      {replie && <div className="mx-3 mb-3 border-t border-white/10" />}
+
+      {!replie && (
+        <div className="mb-2 flex items-center justify-between px-4">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/55">Récents</h2>
+          <Link
+            to="/conversations"
+            onClick={onClick}
+            className={`rounded text-[10px] font-bold uppercase tracking-wider text-[#E95420] transition-colors hover:text-[#FF8A5C] ${ANNEAU_FOCUS}`}
+          >
+            Tout voir
+          </Link>
+        </div>
       )}
 
-      <Icone
-        className={`size-5 shrink-0 transition-colors ${
-          actif ? 'text-[#E95420]' : 'text-white/50 group-hover:text-white'
-        }`}
-        aria-hidden="true"
-      />
+      <ul className={replie ? 'flex flex-col items-center gap-2' : 'space-y-1 px-2'}>
+        {liste.map((c) => {
+          const info = infoConversation(c, moi)
+          const nonLus = c.non_lus ?? 0
+          const titre = c.titre || info.prenom
 
-      {replie ? (
-        <span className="max-w-full truncate text-[10px] font-medium leading-tight">
-          {entree.texteCourt || entree.libelle}
-        </span>
-      ) : (
-        <>
-          <span className="flex-1 truncate">{entree.libelle}</span>
-          <Pastille valeur={valeur} urgent={badge?.urgent} />
-        </>
-      )}
+          return (
+            <li key={c.reference_conversation}>
+              <InfoBulle texte={titre} actif={replie}>
+                <NavLink
+                  to={`/conversations/${c.reference_conversation}`}
+                  onClick={onClick}
+                  className={({ isActive }) =>
+                    `relative flex items-center transition-colors ${ANNEAU_FOCUS} ${
+                      replie
+                        ? `size-12 justify-center rounded-full ${isActive ? 'bg-white/10' : 'hover:bg-white/5'}`
+                        : `h-10 gap-3 rounded-xl px-2 ${isActive ? 'bg-white/10' : 'hover:bg-white/5'}`
+                    }`
+                  }
+                >
+                  <Avatar prenom={info.prenom} nom={info.nom} photoUrl={info.photo} taille="sm" />
 
-      {replie && <Pastille valeur={valeur} urgent={badge?.urgent} compacte />}
-    </NavLink>
+                  {!replie && (
+                    <>
+                      <span
+                        className={`flex-1 truncate text-sm ${
+                          nonLus > 0 ? 'font-semibold text-white' : 'font-medium text-white/70'
+                        }`}
+                      >
+                        {titre}
+                      </span>
+                      {nonLus > 0 ? (
+                        <Pastille valeur={nonLus} />
+                      ) : (
+                        info.groupe && <Users className="size-3.5 shrink-0 text-white/30" aria-hidden="true" />
+                      )}
+                    </>
+                  )}
+
+                  {replie && nonLus > 0 && (
+                    <span
+                      className="absolute right-1 top-1 size-2.5 rounded-full bg-[#E95420] ring-2 ring-[#0B2925]"
+                      aria-hidden="true"
+                    />
+                  )}
+                </NavLink>
+              </InfoBulle>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
@@ -234,7 +369,7 @@ function Entree({ entree, actif, badge, replie, onClick }) {
    ============================================================ */
 export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBasculerRepli }) {
   const { utilisateur, deconnexion } = useAuth()
-  const { conversationsNonLues } = useMessagerie()
+  const { conversations, conversationsNonLues } = useMessagerie()
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const bureau = useBureau()
@@ -244,7 +379,6 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
   const [recherche, setRecherche] = useState('')
   const champRecherche = useRef(null)
 
-  // Le mode replié n'a de sens que sur grand écran : le tiroir mobile reste toujours déplié
   const replie = Boolean(repliePrefere) && bureau
 
   const estAdmin = utilisateur?.role?.libelle === 'Administrateur'
@@ -264,7 +398,6 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
     notifications: compteurs.notifications,
   }
 
-  /* ---------- Tiroir mobile : Échap pour fermer + blocage du défilement de la page ---------- */
   useEffect(() => {
     if (!ouvert || bureau) return undefined
     const surTouche = (e) => {
@@ -279,7 +412,6 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
     }
   }, [ouvert, bureau, onFermer])
 
-  /* ---------- Raccourcis : Ctrl/Cmd + B replie le menu, Ctrl/Cmd + K la recherche ---------- */
   useEffect(() => {
     function surTouche(e) {
       if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return
@@ -297,7 +429,6 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
     return () => document.removeEventListener('keydown', surTouche)
   }, [bureau, onBasculerRepli])
 
-  /** Ferme le tiroir uniquement sur mobile. */
   const fermerMobile = () => {
     if (!bureau) onFermer()
   }
@@ -332,19 +463,27 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex shrink-0 flex-col bg-[#0B2925] transition-[width,transform] duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex shrink-0 flex-col bg-[#0B2925] transition-[width,transform] duration-200 lg:relative lg:translate-x-0 ${
           replie ? 'w-20' : 'w-64'
         } ${ouvert ? 'translate-x-0' : '-translate-x-full'}`}
         aria-label="Navigation principale"
       >
-        {/* ===== Marque ===== */}
-        {!replie ? (
-          <div className="flex items-center gap-2 px-4 pt-6">
-            <img src={LOGO} alt="" className="size-11 shrink-0 object-contain" />
+        {/* ===== En-tête (Logo, Nom, Repli, Fermer mobile) ===== */}
+        <div
+          className={`flex items-center ${
+            replie ? 'flex-col gap-3 pt-5' : 'gap-2 pl-4 pr-3 pt-6 lg:pr-0'
+          }`}
+        >
+          <img src={LOGO} alt="Fulmar" className={replie ? 'size-8 shrink-0' : 'size-9 shrink-0'} />
+
+          {!replie && (
             <span className="flex-1 font-display text-xl font-extrabold leading-none text-white">
               Fulmar
             </span>
+          )}
 
+          {/* Fermer (mobile uniquement) */}
+          {!replie && (
             <button
               type="button"
               className={`rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white lg:hidden ${ANNEAU_FOCUS}`}
@@ -353,33 +492,29 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
             >
               <X className="size-5" />
             </button>
-            <button
-              type="button"
-              onClick={onBasculerRepli}
-              className={`hidden rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white lg:flex ${ANNEAU_FOCUS}`}
-              aria-label="Replier le menu"
-              title="Replier (Ctrl + B)"
-            >
-              <PanelLeft className="size-5" />
-            </button>
-          </div>
-        ) : (
-          // Mode replié : logo puis bouton, empilés et centrés (la largeur de 80 px ne permet pas de les mettre côte à côte)
-          <div className="flex flex-col items-center gap-2 pt-5">
-            <img src={LOGO} alt="Fulmar" className="size-10 shrink-0 object-contain" />
-            <button
-              type="button"
-              onClick={onBasculerRepli}
-              className={`rounded-lg p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white ${ANNEAU_FOCUS}`}
-              aria-label="Déplier le menu"
-              title="Déplier (Ctrl + B)"
-            >
-              <PanelLeft className="size-5" />
-            </button>
-          </div>
-        )}
+          )}
 
-        {/* ===== Recherche (activable avec AFFICHER_RECHERCHE) ===== */}
+          {/* Replier / Déplier (bureau uniquement), intégré à l'en-tête */}
+          <button
+            type="button"
+            onClick={onBasculerRepli}
+            style={{ backgroundColor: COULEUR_BOUTON_REPLI }}
+            className={`hidden h-9 shrink-0 items-center justify-center text-white shadow-[0_0_18px_rgba(34,197,94,0.45)] transition-[filter] duration-200 hover:brightness-110 lg:flex ${
+              replie ? 'size-9 rounded-full' : 'w-11 rounded-l-full'
+            } ${ANNEAU_FOCUS}`}
+            aria-label={replie ? 'Déplier le menu' : 'Replier le menu'}
+            aria-expanded={!replie}
+            title={replie ? 'Déplier (Ctrl + B)' : 'Replier (Ctrl + B)'}
+          >
+            {replie ? (
+              <ChevronRight className="size-5" strokeWidth={2.5} aria-hidden="true" />
+            ) : (
+              <ChevronLeft className="size-5" strokeWidth={2.5} aria-hidden="true" />
+            )}
+          </button>
+        </div>
+
+        {/* ===== Recherche ===== */}
         {AFFICHER_RECHERCHE && !replie && (
           <form onSubmit={lancerRecherche} className="px-4 pt-5" role="search">
             <div className="relative">
@@ -396,18 +531,12 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
                 aria-label="Rechercher dans les conversations"
                 className={`w-full rounded-xl bg-white/10 py-2 pl-9 pr-12 text-sm text-white placeholder:text-white/50 ${ANNEAU_FOCUS}`}
               />
-              <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-white/20 px-1 text-[10px] text-white/50">
-                Ctrl K
-              </kbd>
             </div>
           </form>
         )}
 
         {/* ===== Navigation ===== */}
-        <nav
-          className={`flex-1 overflow-y-auto overflow-x-hidden ${replie ? 'pt-4' : 'pt-6'}`}
-          aria-label="Menu"
-        >
+        <nav className={`flex-1 overflow-y-auto overflow-x-hidden ${replie ? 'pt-4' : 'pt-6'}`} aria-label="Menu">
           {sections.map((section, index) => (
             <Fragment key={section.cle}>
               {index > 0 && (
@@ -436,6 +565,13 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
               </div>
             </Fragment>
           ))}
+
+          <Recents
+            conversations={conversations}
+            moi={utilisateur}
+            replie={replie}
+            onClick={fermerMobile}
+          />
         </nav>
 
         {/* ===== Profil + déconnexion ===== */}
@@ -443,29 +579,31 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
           <div className="border-t border-white/10 px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
             {replie ? (
               <div className="flex flex-col items-center gap-2">
-                <NavLink
-                  to="/profil"
-                  onClick={fermerMobile}
-                  title="Mon compte"
-                  aria-label="Mon compte"
-                  className={`rounded-full ${ANNEAU_FOCUS}`}
-                >
-                  <Avatar
-                    prenom={utilisateur.prenom}
-                    nom={utilisateur.nom}
-                    taille="sm"
-                    photoUrl={utilisateur.photo_url}
-                  />
-                </NavLink>
-                <button
-                  type="button"
-                  onClick={() => setConfirmationOuverte(true)}
-                  className={`rounded-lg p-2 text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400 ${ANNEAU_FOCUS}`}
-                  aria-label="Se déconnecter"
-                  title="Se déconnecter"
-                >
-                  <LogOut className="size-5" />
-                </button>
+                <InfoBulle texte="Mon compte" actif={replie}>
+                  <NavLink
+                    to="/profil"
+                    onClick={fermerMobile}
+                    aria-label="Mon compte"
+                    className={`block rounded-full ${ANNEAU_FOCUS}`}
+                  >
+                    <Avatar
+                      prenom={utilisateur.prenom}
+                      nom={utilisateur.nom}
+                      taille="sm"
+                      photoUrl={utilisateur.photo_url}
+                    />
+                  </NavLink>
+                </InfoBulle>
+                <InfoBulle texte="Se déconnecter" actif={replie}>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmationOuverte(true)}
+                    className={`rounded-lg p-2 text-white/60 transition-colors hover:bg-red-500/10 hover:text-red-400 ${ANNEAU_FOCUS}`}
+                    aria-label="Se déconnecter"
+                  >
+                    <LogOut className="size-5" />
+                  </button>
+                </InfoBulle>
               </div>
             ) : (
               <div className="flex items-center gap-1">
@@ -504,6 +642,7 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
             )}
           </div>
         )}
+
       </aside>
 
       <ConfirmationModal
