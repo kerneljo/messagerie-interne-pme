@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  AlertTriangle, Briefcase, Building2, Calendar, Camera, Check, Clock, Copy,
-  Eye, EyeOff, KeyRound, Mail, Shield, Trash2, User as UserIcon,
-  Monitor, Moon, Sun, Palette,
+  AlertTriangle, Check, Copy, Eye, EyeOff, Info, KeyRound, Lock,
+  Monitor, Moon, Shield, Sun,
 } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../AuthContext'
@@ -12,21 +11,26 @@ import { Bouton, Chargement } from '../components/ui'
 import ConfirmationModal from '../components/ConfirmationModal'
 
 const ONGLETS = [
-  { id: 'profil', libelle: 'Profil', icone: UserIcon },
-  { id: 'securite', libelle: 'Sécurité', icone: KeyRound },
-  { id: 'theme', libelle: 'Thème', icone: Palette },
+  { id: 'profil', libelle: 'Profil' },
+  { id: 'securite', libelle: 'Sécurité' },
+  { id: 'theme', libelle: 'Apparence' },
 ]
 
-const TAILLE_MAX_PHOTO = 5 * 1024 * 1024 //5Mo
+const TAILLE_MAX_PHOTO = 5 * 1024 * 1024 // 5 Mo
 const TYPES_PHOTO = ['image/jpeg', 'image/png', 'image/webp']
 
 const NIVEAUX_MDP = [
   { label: 'En attente…', couleur: 'bg-slate-300' },
-  { label: 'Faible', couleur: 'bg-action-600' },
-  { label: 'Moyen', couleur: 'bg-mangue-500' },
-  { label: 'Bon', couleur: 'bg-indigo-400' },
-  { label: 'Excellent', couleur: 'bg-indigo-600' },
+  { label: 'Faible', couleur: 'bg-red-500' },
+  { label: 'Moyen', couleur: 'bg-amber-500' },
+  { label: 'Bon', couleur: 'bg-emerald-400' },
+  { label: 'Excellent', couleur: 'bg-emerald-600' },
 ]
+
+/* Une seule couleur d'accent : l'orange. Le vert reste réservé à la sidebar. */
+const FOCUS =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C2410C]'
+const CARTE = 'rounded-2xl border border-slate-200/80 bg-white shadow-sm'
 
 /* ───────────────────────────── Utilitaires ───────────────────────────── */
 
@@ -44,15 +48,16 @@ function formaterDate(iso, avecHeure = true) {
   })
 }
 
-function texteAnciennete(iso) {
+function ilYA(iso) {
   if (!iso) return ''
-  const jours = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
-  if (Number.isNaN(jours) || jours < 0) return ''
-  if (jours < 1) return "Compte créé aujourd'hui"
-  if (jours < 31) return `Membre depuis ${jours} jour${jours > 1 ? 's' : ''}`
-  if (jours < 365) return `Membre depuis ${Math.floor(jours / 30)} mois`
-  const ans = Math.floor(jours / 365)
-  return `Membre depuis ${ans} an${ans > 1 ? 's' : ''}`
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (Number.isNaN(min)) return ''
+  if (min < 2) return 'active maintenant'
+  if (min < 60) return `il y a ${min} min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `il y a ${h} h`
+  const j = Math.floor(h / 24)
+  return `il y a ${j} jour${j > 1 ? 's' : ''}`
 }
 
 /* ───────────────────────────── Page ───────────────────────────── */
@@ -63,7 +68,6 @@ export default function Profil() {
   const [echec, setEchec] = useState(false)
   const [profil, setProfil] = useState(null)
   const [onglet, setOnglet] = useState('profil')
-  const [copie, setCopie] = useState(false)
 
   async function charger() {
     try {
@@ -83,15 +87,17 @@ export default function Profil() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function copierEmail() {
-    if (!profil?.email) return
-    try {
-      await navigator.clipboard.writeText(profil.email)
-      setCopie(true)
-      setTimeout(() => setCopie(false), 1500)
-    } catch {
-      // presse-papiers indisponible : on ignore
-    }
+  // Navigation clavier entre onglets : ← → Début Fin
+  function surToucheOnglet(e, index) {
+    if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return
+    e.preventDefault()
+    let suivant = index
+    if (e.key === 'ArrowRight') suivant = (index + 1) % ONGLETS.length
+    if (e.key === 'ArrowLeft') suivant = (index - 1 + ONGLETS.length) % ONGLETS.length
+    if (e.key === 'Home') suivant = 0
+    if (e.key === 'End') suivant = ONGLETS.length - 1
+    setOnglet(ONGLETS[suivant].id)
+    document.getElementById(`onglet-${ONGLETS[suivant].id}`)?.focus()
   }
 
   if (chargement) return <Chargement />
@@ -99,8 +105,8 @@ export default function Profil() {
   if (echec && !profil) {
     return (
       <div className="mx-auto max-w-[1600px] p-4 md:p-6">
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-8 text-center">
-          <AlertTriangle className="mx-auto mb-3 size-10 text-red-500" />
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+          <AlertTriangle className="mx-auto mb-3 size-10 text-red-500" aria-hidden="true" />
           <p className="text-sm text-red-700">Impossible de charger le profil.</p>
         </div>
       </div>
@@ -111,96 +117,53 @@ export default function Profil() {
   const actif = profil.statut_compte !== 'desactive'
 
   return (
-    <div className="mx-auto max-w-[1600px] px-3 py-4 pb-10 md:px-5 md:py-6">
-      {/* ───── Carte d'identité ───── */}
-      <section className="rounded-[28px] bg-papier shadow-sm ring-1 ring-slate-200/70">
-        {/* Bandeau décoratif */}
-        <div className="relative h-32 overflow-hidden rounded-t-[28px] bg-lagon-950 sm:h-40">
-          <div aria-hidden="true" className="absolute inset-0">
-            <span className="absolute -right-8 -top-14 size-52 rotate-12 rounded-[38%] bg-action-600/70" />
-            <span className="absolute right-44 top-12 size-32 -rotate-6 rounded-[38%] bg-mangue-400/60" />
-            <span className="absolute -bottom-20 -left-10 size-56 rounded-full bg-lagon-800" />
-            <span className="absolute left-1/3 top-6 size-20 rotate-45 rounded-[38%] bg-lagon-800/80" />
+    <div className="mx-auto max-w-[1600px] px-3 py-5 pb-10 md:px-6 md:py-8">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        {/* Colonne gauche : carte d'identité */}
+        <CarteIdentite profil={profil} poste={poste} actif={actif} onChange={charger} />
+
+        {/* Colonne droite : onglets soulignés + contenu */}
+        <div className="flex min-w-0 flex-col gap-5">
+          <div role="tablist" aria-label="Sections du profil" className="flex gap-7 border-b border-slate-200">
+            {ONGLETS.map(({ id, libelle }, index) => {
+              const selectionne = onglet === id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`onglet-${id}`}
+                  aria-selected={selectionne}
+                  aria-controls={`panneau-${id}`}
+                  tabIndex={selectionne ? 0 : -1}
+                  onClick={() => setOnglet(id)}
+                  onKeyDown={(e) => surToucheOnglet(e, index)}
+                  className={`-mb-px min-h-11 border-b-[3px] py-2.5 text-sm transition-colors ${FOCUS} ${
+                    selectionne
+                      ? 'border-[#C2410C] font-extrabold text-slate-900'
+                      : 'border-transparent font-semibold text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {libelle}
+                </button>
+              )
+            })}
+          </div>
+
+          <div role="tabpanel" id={`panneau-${onglet}`} aria-labelledby={`onglet-${onglet}`}>
+            {onglet === 'profil' && <OngletProfil profil={profil} poste={poste} />}
+            {onglet === 'securite' && <OngletSecurite />}
+            {onglet === 'theme' && <OngletTheme />}
           </div>
         </div>
-
-        {/* Contenu sous le bandeau */}
-        <div className="relative px-5 pb-10 sm:px-10 sm:pb-12">
-          <div className="absolute -top-16 left-5 sm:-top-28 sm:left-10">
-            <BlocPhoto profil={profil} />
-          </div>
-
-          <div className="flex justify-start pt-20 sm:pt-6 sm:pl-68">
-            <ActionsPhoto profil={profil} onChange={charger} />
-          </div>
-        </div>
-      </section>
-
-      {/* ───── Onglets ───── */}
-      <div
-        role="tablist"
-        aria-label="Sections du profil"
-        className="mt-7 inline-flex rounded-2xl bg-white/70 p-1 ring-1 ring-slate-200/70"
-      >
-        {ONGLETS.map(({ id, libelle, icone: Icone }) => {
-          const selectionne = onglet === id
-          return (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              id={`onglet-${id}`}
-              aria-selected={selectionne}
-              aria-controls={`panneau-${id}`}
-              onClick={() => setOnglet(id)}
-                           className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
-                selectionne
-                  ? 'rounded-bl-[5px] bg-action-600 text-white shadow-md'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <Icone className="size-4" />
-              {libelle}
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="mt-5" role="tabpanel" id={`panneau-${onglet}`} aria-labelledby={`onglet-${onglet}`}>
-        {onglet === 'profil' && <OngletProfil profil={profil} poste={poste} actif={actif} />}
-        {onglet === 'securite' && <OngletSecurite />}
-        {onglet === 'theme' && <OngletTheme />}
       </div>
     </div>
   )
 }
 
-/* ───────────────────────────── Photo : affichage ───────────────────────────── */
+/* ───────────────────────────── Photo : logique ───────────────────────────── */
 
-function BlocPhoto({ profil }) {
-  return (
-    <div className="relative shrink-0">
-      {profil.photo_url ? (
-        <img
-          src={profil.photo_url}
-          alt={`${profil.prenom} ${profil.nom}`}
-          className="size-32 rounded-[30%] bg-papier object-cover shadow-2xl ring-4 ring-papier sm:size-52"
-        />
-      ) : (
-        <div className="flex size-32 items-center justify-center rounded-[30%] bg-mangue-300 shadow-2xl ring-4 ring-papier sm:size-52">
-          <span className="font-display text-5xl font-extrabold text-lagon-950 sm:text-7xl">
-            {profil.prenom?.[0]}
-            {profil.nom?.[0]}
-          </span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ───────────────────────────── Photo : actions ───────────────────────────── */
-
-function ActionsPhoto({ profil, onChange }) {
+function usePhotoProfil(onChange) {
   const [uploadEnCours, setUploadEnCours] = useState(false)
   const [erreur, setErreur] = useState('')
   const [confirmation, setConfirmation] = useState(false)
@@ -252,137 +215,318 @@ function ActionsPhoto({ profil, onChange }) {
     }
   }
 
+  return {
+    inputRef, uploadEnCours, erreur, confirmation, setConfirmation,
+    suppressionEnCours, choisirFichier, supprimer,
+  }
+}
+
+/* ───────────────────────────── Carte d'identité (colonne gauche) ───────────────────────────── */
+
+function CarteIdentite({ profil, poste, actif, onChange }) {
+  const photo = usePhotoProfil(onChange)
+  const [copie, setCopie] = useState(false)
+  const nomComplet = `${profil.prenom ?? ''} ${profil.nom ?? ''}`.trim()
+  const ligne = [poste, profil.service?.nom_service].filter(Boolean).join(' · ')
+
+  useEffect(() => {
+    if (!copie) return undefined
+    const t = setTimeout(() => setCopie(false), 1500)
+    return () => clearTimeout(t)
+  }, [copie])
+
+  async function copierEmail() {
+    if (!profil.email) return
+    try {
+      await navigator.clipboard.writeText(profil.email)
+      setCopie(true)
+    } catch {
+      // presse-papiers indisponible : on ignore
+    }
+  }
+
   return (
-    <div className="flex flex-col items-end gap-2">
-      <div className="flex flex-wrap items-center justify-end gap-2">
+    <section className={`${CARTE} flex flex-col gap-4 px-6 py-7`}>
+      <div className="flex flex-col items-center gap-1.5 text-center">
+        {profil.photo_url ? (
+          <img src={profil.photo_url} alt={nomComplet} className="size-24 rounded-full object-cover" />
+        ) : (
+          <div className="flex size-24 items-center justify-center rounded-full bg-slate-200 font-display text-3xl font-extrabold text-slate-800">
+            {profil.prenom?.[0]}
+            {profil.nom?.[0]}
+          </div>
+        )}
+
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={uploadEnCours}
-          className="inline-flex items-center gap-2.5 rounded-full bg-lagon-950 px-6 py-3 text-sm font-semibold text-papier shadow-lg transition hover:bg-lagon-800 hover:shadow-xl active:scale-[0.98] disabled:opacity-60 sm:px-7 sm:py-3.5 sm:text-base"
+          onClick={() => photo.inputRef.current?.click()}
+          disabled={photo.uploadEnCours}
+          aria-busy={photo.uploadEnCours}
+          className={`mt-2 min-h-11 rounded-full border border-slate-300 bg-white px-4 text-[13px] font-semibold text-slate-900 transition hover:bg-slate-50 disabled:opacity-60 ${FOCUS}`}
         >
-          <Camera className="size-4 sm:size-5" />
-          {uploadEnCours ? 'Envoi…' : 'Changer la photo'}
+          {photo.uploadEnCours ? 'Envoi…' : 'Changer la photo'}
         </button>
 
         {profil.photo_url && (
           <button
             type="button"
-            onClick={() => setConfirmation(true)}
-            className="inline-flex items-center gap-2 rounded-full border-2 border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 active:scale-[0.98] sm:px-6 sm:py-3.5 sm:text-base"
-            aria-label="Retirer la photo"
-            title="Retirer la photo"
+            onClick={() => photo.setConfirmation(true)}
+            className={`min-h-11 rounded-lg px-3 text-sm text-slate-500 transition hover:text-red-600 ${FOCUS}`}
           >
-            <Trash2 className="size-4 sm:size-5" />
-            Retirer
+            Retirer la photo
           </button>
         )}
+
+        <input
+          ref={photo.inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={photo.choisirFichier}
+          aria-label="Choisir une photo de profil"
+        />
+
+        {photo.erreur && (
+          <p className="text-sm text-red-600" role="alert">
+            {photo.erreur}
+          </p>
+        )}
+
+        <h2 className="mt-2 font-display text-xl font-extrabold text-slate-900">{nomComplet}</h2>
+        {ligne && <p className="text-slate-600">{ligne}</p>}
+
+        <div className="mt-1 flex flex-wrap justify-center gap-2">
+          {profil.role?.libelle && (
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              {profil.role.libelle}
+            </span>
+          )}
+          {!actif && (
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+              Compte désactivé
+            </span>
+          )}
+        </div>
       </div>
 
-      {erreur && (
-        <p className="max-w-[320px] text-right text-xs text-red-600 sm:text-sm" role="alert">
-          {erreur}
-        </p>
-      )}
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="hidden"
-        onChange={choisirFichier}
-        aria-label="Choisir une photo de profil"
-      />
+      <dl className="flex flex-col gap-3.5 border-t border-slate-200/80 pt-4 text-sm">
+        <div>
+          <dt className="text-xs text-slate-600">Adresse e-mail</dt>
+          <dd className="flex items-center justify-between gap-2 font-semibold text-slate-900">
+            <span className="min-w-0 break-all">{profil.email}</span>
+            <button
+              type="button"
+              onClick={copierEmail}
+              className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${FOCUS}`}
+              aria-label={copie ? 'Adresse copiée' : "Copier l'adresse e-mail"}
+            >
+              {copie ? (
+                <Check className="size-4 text-emerald-600" aria-hidden="true" />
+              ) : (
+                <Copy className="size-4" aria-hidden="true" />
+              )}
+              {copie ? 'Copié' : 'Copier'}
+            </button>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-600">Compte créé le</dt>
+          <dd className="font-semibold text-slate-900">{formaterDate(profil.date_creation, false)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-600">Dernière connexion</dt>
+          <dd className="font-semibold text-slate-900">{formaterDate(profil.derniere_connexion)}</dd>
+        </div>
+      </dl>
 
       <ConfirmationModal
-        ouvert={confirmation}
-        onFermer={() => setConfirmation(false)}
-        onConfirmer={supprimer}
+        ouvert={photo.confirmation}
+        onFermer={() => photo.setConfirmation(false)}
+        onConfirmer={photo.supprimer}
         titre="Retirer la photo ?"
         message="Vos initiales seront affichées à la place de votre photo de profil."
         texteConfirmer="Retirer"
         texteAnnuler="Annuler"
         variant="danger"
-        enCours={suppressionEnCours}
+        enCours={photo.suppressionEnCours}
       />
-    </div>
-  )
-}
-
-/* ───────────────────────────── Éléments communs ───────────────────────────── */
-
-function Pastille({ icone: Icone, texte, ton }) {
-  const tons = {
-    sombre: 'bg-lagon-950 text-papier',
-    clair: 'bg-slate-100 text-slate-700',
-    chaud: 'bg-mangue-300/60 text-lagon-950',
-  }
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full rounded-bl-[5px] px-3 py-1 text-xs font-semibold ${tons[ton]}`}>
-      <Icone className="size-3.5" />
-      {texte}
-    </span>
-  )
-}
-
-function Fiche({ icone: Icone, titre, children }) {
-  return (
-    <section className="flex h-full flex-col rounded-3xl bg-papier p-6 shadow-sm ring-1 ring-slate-200/70">
-      <header className="mb-5 flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-[30%] bg-mangue-300/60 text-lagon-950">
-          <Icone className="size-5" />
-        </span>
-        <h3 className="font-display text-lg font-bold text-slate-900">{titre}</h3>
-      </header>
-      <dl className="flex-1 divide-y divide-slate-200/70">{children}</dl>
     </section>
-  )
-}
-
-function Champ({ label, children }) {
-  return (
-    <div className="py-3 first:pt-0 last:pb-0">
-      <dt className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{label}</dt>
-      <dd className="mt-1 break-words text-[15px] font-semibold text-slate-900">{children}</dd>
-    </div>
   )
 }
 
 /* ───────────────────────────── Onglet Profil ───────────────────────────── */
 
-function OngletProfil({ profil, poste, actif }) {
-  const anciennete = texteAnciennete(profil.date_creation)
+function Ligne({ label, children, derniere = false }) {
   return (
-    <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
-      <Fiche icone={UserIcon} titre="Identité">
-        <Champ label="Prénom">{profil.prenom}</Champ>
-        <Champ label="Nom">{profil.nom}</Champ>
-        <Champ label="Adresse e-mail">{profil.email}</Champ>
-      </Fiche>
-
-      <Fiche icone={Briefcase} titre="Poste">
-        <Champ label="Intitulé">{poste || '—'}</Champ>
-        <Champ label="Service">{profil.service?.nom_service || '—'}</Champ>
-        <Champ label="Rôle">{profil.role?.libelle || '—'}</Champ>
-        <Champ label="Statut">
-          <span className="inline-flex items-center gap-2">
-            <span className={`size-2 rounded-full ${actif ? 'bg-indigo-500' : 'bg-slate-400'}`} />
-            {actif ? 'Actif' : 'Désactivé'}
-          </span>
-        </Champ>
-      </Fiche>
-
-      <Fiche icone={Calendar} titre="Compte">
-        <Champ label="Créé le">{formaterDate(profil.date_creation)}</Champ>
-        <Champ label="Dernière connexion">
-          <span className="inline-flex items-center gap-2">
-            <Clock className="size-4 text-slate-400" />
-            {formaterDate(profil.derniere_connexion)}
-          </span>
-        </Champ>
-        {anciennete && <Champ label="Ancienneté">{anciennete}</Champ>}
-      </Fiche>
+    <div
+      className={`grid grid-cols-1 gap-0.5 py-3.5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-4 ${
+        derniere ? '' : 'border-b border-slate-100'
+      }`}
+    >
+      <dt className="text-slate-600">{label}</dt>
+      <dd className="break-words font-semibold text-slate-900">{children}</dd>
     </div>
+  )
+}
+
+function OngletProfil({ profil, poste }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <section className={CARTE}>
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 px-6 py-4">
+          <h3 className="font-display text-base font-extrabold text-slate-900">Informations</h3>
+          <span className="flex items-center gap-1.5 text-xs text-slate-600">
+            <Lock className="size-3" aria-hidden="true" />
+            Géré par l'administrateur
+          </span>
+        </header>
+        <dl className="px-6 text-sm">
+          <Ligne label="Prénom">{profil.prenom}</Ligne>
+          <Ligne label="Nom">{profil.nom}</Ligne>
+          <Ligne label="Intitulé">{poste || '—'}</Ligne>
+          <Ligne label="Service">{profil.service?.nom_service || '—'}</Ligne>
+          <Ligne label="Rôle" derniere>{profil.role?.libelle || '—'}</Ligne>
+        </dl>
+      </section>
+
+      <AppareilsConnectes />
+    </div>
+  )
+}
+
+/* ───────────────────────────── Appareils connectés ─────────────────────────────
+   Attend du backend :
+     GET    /api/profil/sessions      → [{ id, appareil, systeme, lieu, derniere_activite, actuelle }]
+     DELETE /api/profil/sessions/:id  → ferme une session
+     DELETE /api/profil/sessions      → ferme toutes les sessions sauf la courante
+   Si la route n'existe pas encore, seul l'appareil actuel est affiché (déduit du navigateur). */
+
+function appareilLocal() {
+  const ua = navigator.userAgent
+  const nav = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox'
+    : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'Navigateur'
+  const sys = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows'
+    : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : ''
+  return { id: 'local', appareil: nav, systeme: sys, lieu: '', derniere_activite: new Date().toISOString(), actuelle: true }
+}
+
+function AppareilsConnectes() {
+  const [sessions, setSessions] = useState(undefined) // undefined = chargement, null = indisponible
+  const [erreur, setErreur] = useState('')
+  const [confirmation, setConfirmation] = useState(false)
+  const [enCours, setEnCours] = useState(false)
+
+  async function charger() {
+    try {
+      const r = await api.get('/api/profil/sessions')
+      const liste = Array.isArray(r.data) ? r.data : r.data?.data ?? []
+      setSessions(liste)
+    } catch {
+      setSessions(null)
+    }
+  }
+
+  useEffect(() => {
+    charger()
+  }, [])
+
+  async function fermer(id) {
+    setErreur('')
+    try {
+      await api.delete(`/api/profil/sessions/${id}`)
+      await charger()
+    } catch (err) {
+      setErreur(err.response?.data?.message || 'Déconnexion impossible.')
+    }
+  }
+
+  async function fermerAutres() {
+    setEnCours(true)
+    setErreur('')
+    try {
+      await api.delete('/api/profil/sessions')
+      setConfirmation(false)
+      await charger()
+    } catch (err) {
+      setConfirmation(false)
+      setErreur(err.response?.data?.message || 'Déconnexion impossible.')
+    } finally {
+      setEnCours(false)
+    }
+  }
+
+  if (sessions === undefined) return null
+  const disponible = Array.isArray(sessions)
+  const liste = disponible ? sessions : [appareilLocal()]
+  const autres = liste.filter((s) => !s.actuelle)
+
+  return (
+    <section className={CARTE} aria-label="Appareils connectés">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 px-6 py-4">
+        <h3 className="font-display text-base font-extrabold text-slate-900">Appareils connectés</h3>
+        {autres.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setConfirmation(true)}
+            className={`min-h-11 rounded-[10px] bg-[#C2410C] px-4 text-[13px] font-semibold text-white transition hover:bg-[#9A3412] ${FOCUS}`}
+          >
+            Déconnecter les autres appareils
+          </button>
+        )}
+      </header>
+
+      {erreur && (
+        <p className="px-6 pt-3 text-sm text-red-600" role="alert">
+          {erreur}
+        </p>
+      )}
+
+      <ul className="divide-y divide-slate-100">
+        {liste.map((s) => (
+          <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+            <div className="min-w-0">
+              <p className="font-semibold text-slate-900">
+                {[s.appareil, s.systeme].filter(Boolean).join(' · ') || 'Appareil inconnu'}
+              </p>
+              <p className="text-[13px] text-slate-600">
+                {[s.lieu, ilYA(s.derniere_activite)].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+            {s.actuelle ? (
+              <span className="rounded-full bg-[#0B2925] px-3 py-1 text-xs font-semibold text-white">
+                Cet appareil
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fermer(s.id)}
+                className={`min-h-11 rounded-[10px] border border-slate-300 bg-white px-4 text-[13px] font-semibold text-red-700 transition hover:bg-red-50 ${FOCUS}`}
+              >
+                Déconnecter
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {disponible && autres.length === 0 && (
+        <p className="border-t border-slate-100 px-6 py-3 text-[13px] text-slate-600">
+          Aucune autre session active.
+        </p>
+      )}
+
+      <ConfirmationModal
+        ouvert={confirmation}
+        onFermer={() => setConfirmation(false)}
+        onConfirmer={fermerAutres}
+        titre="Déconnecter les autres appareils ?"
+        message="Toutes les autres sessions seront fermées. Vous devrez vous reconnecter sur ces appareils."
+        texteConfirmer="Déconnecter"
+        texteAnnuler="Annuler"
+        variant="danger"
+        enCours={enCours}
+      />
+    </section>
   )
 }
 
@@ -446,10 +590,10 @@ function OngletSecurite() {
 
   return (
     <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-5">
-      <section className="rounded-3xl bg-papier p-6 shadow-sm ring-1 ring-slate-200/70 sm:p-8 lg:col-span-3">
+      <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70 sm:p-8 lg:col-span-3">
         <header className="mb-7 flex items-start gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-[30%] bg-mangue-300/60 text-lagon-950">
-            <KeyRound className="size-5" />
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+            <KeyRound className="size-5" aria-hidden="true" />
           </span>
           <div>
             <h3 className="font-display text-xl font-bold text-slate-900">Modifier le mot de passe</h3>
@@ -497,14 +641,14 @@ function OngletSecurite() {
 
           {erreur && (
             <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-500" />
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-500" aria-hidden="true" />
               <p className="text-sm text-red-700">{erreur}</p>
             </div>
           )}
           {succes && (
-            <div className="flex items-start gap-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3" role="status">
-              <Check className="mt-0.5 size-4 shrink-0 text-indigo-600" />
-              <p className="text-sm text-indigo-800">{succes}</p>
+            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3" role="status">
+              <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+              <p className="text-sm text-emerald-800">{succes}</p>
             </div>
           )}
 
@@ -515,7 +659,7 @@ function OngletSecurite() {
               disabled={envoi || !motDePasseActuel || !nouveau || !confirmation}
               className="px-5 py-2.5 font-semibold"
             >
-              <KeyRound className="size-4" />
+              <KeyRound className="size-4" aria-hidden="true" />
               {envoi ? 'Modification…' : 'Changer le mot de passe'}
             </Bouton>
           </div>
@@ -523,9 +667,9 @@ function OngletSecurite() {
       </section>
 
       <div className="space-y-5 lg:col-span-2">
-        <section className="rounded-3xl bg-papier p-6 shadow-sm ring-1 ring-slate-200/70">
+        <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70">
           <div className="mb-4 flex items-center gap-2">
-            <Shield className="size-4 text-slate-500" />
+            <Shield className="size-4 text-slate-500" aria-hidden="true" />
             <h4 className="font-display text-base font-bold text-slate-900">Solidité du mot de passe</h4>
           </div>
 
@@ -545,25 +689,26 @@ function OngletSecurite() {
             {exigences.map((e) => (
               <li key={e.label} className="flex items-center gap-2.5 text-xs">
                 <span
-                  className={`flex size-5 shrink-0 items-center justify-center rounded-[30%] transition-colors ${
-                    e.valide ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                  className={`flex size-5 shrink-0 items-center justify-center rounded-md transition-colors ${
+                    e.valide ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'
                   }`}
                 >
-                  <Check className="size-3" strokeWidth={3} />
+                  <Check className="size-3" strokeWidth={3} aria-hidden="true" />
                 </span>
                 <span className={e.valide ? 'font-semibold text-slate-800' : 'text-slate-500'}>{e.label}</span>
+                <span className="sr-only">{e.valide ? '(validé)' : '(non validé)'}</span>
               </li>
             ))}
           </ul>
         </section>
 
-        <section className="flex items-start gap-3 rounded-3xl bg-mangue-300/50 p-5 ring-1 ring-mangue-400/40">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-[30%] bg-mangue-400 text-lagon-950">
-            <AlertTriangle className="size-4" />
+        <section className="flex items-start gap-3 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-700">
+            <Info className="size-4" aria-hidden="true" />
           </span>
           <div>
-            <h4 className="font-display text-sm font-bold text-lagon-950">Bon réflexe</h4>
-            <p className="mt-1 text-xs leading-relaxed text-lagon-950/80">
+            <h4 className="font-display text-sm font-bold text-slate-900">Bon réflexe</h4>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
               Après avoir changé votre mot de passe, pensez à vous déconnecter des autres appareils
               si votre compte a été compromis.
             </p>
@@ -578,8 +723,8 @@ function ChampMdp({ id, label, value, onChange, erreur, voir, setVoir, placehold
   const bordure = erreur
     ? 'border-red-300 focus:border-red-400 focus:ring-red-500/15'
     : valide
-      ? 'border-indigo-300 focus:border-indigo-400 focus:ring-indigo-500/15'
-      : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/15'
+      ? 'border-emerald-300 focus:border-emerald-400 focus:ring-emerald-500/15'
+      : 'border-slate-200 focus:border-[#C2410C] focus:ring-[#C2410C]/15'
 
   return (
     <div>
@@ -595,25 +740,27 @@ function ChampMdp({ id, label, value, onChange, erreur, voir, setVoir, placehold
           placeholder={placeholder}
           autoComplete="new-password"
           required
+          aria-invalid={Boolean(erreur)}
+          aria-describedby={erreur || aide ? `${id}-aide` : undefined}
           className={`w-full rounded-xl border bg-white py-3 pl-4 pr-12 text-sm text-slate-900 transition-all placeholder:text-slate-400 focus:outline-none focus:ring-4 ${bordure}`}
         />
         <button
           type="button"
           onClick={() => setVoir(!voir)}
-          className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 transition-colors hover:text-indigo-600"
+          className={`absolute inset-y-0 right-0 flex items-center rounded-r-xl pr-4 text-slate-400 transition-colors hover:text-slate-700 ${FOCUS}`}
           aria-label={voir ? 'Masquer les mots de passe' : 'Afficher les mots de passe'}
           title={voir ? 'Masquer' : 'Afficher'}
         >
-          {voir ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          {voir ? <EyeOff className="size-4" aria-hidden="true" /> : <Eye className="size-4" aria-hidden="true" />}
         </button>
       </div>
       {erreur ? (
-        <p className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
-          <AlertTriangle className="size-3" />
+        <p id={`${id}-aide`} className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+          <AlertTriangle className="size-3" aria-hidden="true" />
           {erreur}
         </p>
       ) : aide ? (
-        <p className="mt-1.5 text-xs text-slate-500">{aide}</p>
+        <p id={`${id}-aide`} className="mt-1.5 text-xs text-slate-500">{aide}</p>
       ) : null}
     </div>
   )
@@ -693,9 +840,9 @@ function CarteTheme({ theme, selectionne, onSelectionner }) {
       type="button"
       onClick={onSelectionner}
       aria-pressed={selectionne}
-      className={`group relative overflow-hidden rounded-3xl bg-papier p-3 text-left shadow-sm transition-shadow duration-300 ${
+      className={`group relative overflow-hidden rounded-2xl bg-white p-3 text-left shadow-sm transition-shadow duration-300 ${FOCUS} ${
         selectionne
-          ? 'shadow-xl ring-2 ring-action-600'
+          ? 'shadow-xl ring-2 ring-[#C2410C]'
           : 'ring-1 ring-slate-200/70 hover:shadow-lg hover:ring-slate-300'
       }`}
     >
@@ -719,7 +866,7 @@ function CarteTheme({ theme, selectionne, onSelectionner }) {
           className="flex size-8 shrink-0 items-center justify-center rounded-xl"
           style={{ backgroundColor: c.sidebar, color: '#fff' }}
         >
-          <Icone className="size-4" />
+          <Icone className="size-4" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-slate-900">{theme.nom}</p>
@@ -728,24 +875,22 @@ function CarteTheme({ theme, selectionne, onSelectionner }) {
       </div>
 
       {selectionne && (
-        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-action-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg">
-          <Check className="size-3" strokeWidth={3} />
+        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-[#C2410C] px-2.5 py-1 text-xs font-semibold text-white shadow-lg">
+          <Check className="size-3" strokeWidth={3} aria-hidden="true" />
           Actif
         </span>
       )}
     </button>
   )
 }
+
 /* Mockup dessiné (fallback pour les thèmes sans image) */
 function ApercuMockup({ couleurs }) {
   const c = couleurs
   return (
     <div className="flex size-full" style={{ backgroundColor: c.fond }}>
       {/* Sidebar */}
-      <div
-        className="flex w-1/4 flex-col gap-2 p-2"
-        style={{ backgroundColor: c.sidebar }}
-      >
+      <div className="flex w-1/4 flex-col gap-2 p-2" style={{ backgroundColor: c.sidebar }}>
         <div className="flex items-center gap-1">
           <div className="size-2.5 rounded-full" style={{ backgroundColor: c.bulleEnvoyee }} />
           <div className="h-1.5 w-8 rounded-full bg-white/40" />
@@ -763,22 +908,10 @@ function ApercuMockup({ couleurs }) {
 
       {/* Zone messages */}
       <div className="flex flex-1 flex-col justify-end gap-1.5 p-2.5">
-        <div
-          className="h-3 w-3/5 self-start rounded-full"
-          style={{ backgroundColor: c.bulleRecue }}
-        />
-        <div
-          className="h-3 w-2/5 self-start rounded-full"
-          style={{ backgroundColor: c.bulleRecue }}
-        />
-        <div
-          className="h-3 w-2/5 self-end rounded-full"
-          style={{ backgroundColor: c.bulleEnvoyee }}
-        />
-        <div
-          className="h-3 w-1/2 self-end rounded-full"
-          style={{ backgroundColor: c.bulleEnvoyee }}
-        />
+        <div className="h-3 w-3/5 self-start rounded-full" style={{ backgroundColor: c.bulleRecue }} />
+        <div className="h-3 w-2/5 self-start rounded-full" style={{ backgroundColor: c.bulleRecue }} />
+        <div className="h-3 w-2/5 self-end rounded-full" style={{ backgroundColor: c.bulleEnvoyee }} />
+        <div className="h-3 w-1/2 self-end rounded-full" style={{ backgroundColor: c.bulleEnvoyee }} />
       </div>
     </div>
   )

@@ -9,6 +9,7 @@ use App\Http\Controllers\FichierController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfilController;
+use App\Http\Controllers\SessionController;
 use App\Http\Controllers\UtilisateurController;
 use App\Http\Controllers\PosteController;
 use App\Http\Middleware\CompteActif;
@@ -38,6 +39,12 @@ Route::middleware(['auth:sanctum', CompteActif::class])->group(function () {
     Route::put('/profil/mot-de-passe', [ProfilController::class, 'changerMotDePasse']);
     Route::post('/profil/photo', [ProfilController::class, 'uploadPhoto']);
     Route::delete('/profil/photo', [ProfilController::class, 'supprimerPhoto']);
+
+    // Appareils connectés (une session = un jeton Sanctum)
+    Route::get('/profil/sessions', [SessionController::class, 'index']);
+    Route::delete('/profil/sessions', [SessionController::class, 'destroyAutres']);
+    Route::delete('/profil/sessions/{id}', [SessionController::class, 'destroy'])
+        ->whereNumber('id');
 
     Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::get('/annuaire', [AnnuaireController::class, 'index']);
