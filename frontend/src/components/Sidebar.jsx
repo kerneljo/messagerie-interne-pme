@@ -190,8 +190,6 @@ function Pastille({ valeur, urgent, compacte }) {
 
 /* ============================================================
    Infobulle (mode replié)
-   Rendue dans <body> via un portail : le <nav> a overflow-x-hidden,
-   une infobulle posée à l'intérieur serait coupée.
    ============================================================ */
 function InfoBulle({ texte, actif, children, className = 'block' }) {
   const [pos, setPos] = useState(null)
@@ -293,7 +291,6 @@ function Recents({ conversations, moi, replie, onClick }) {
 
   return (
     <section aria-label="Conversations récentes" className={replie ? 'mt-3' : 'mt-4'}>
-      {/* Replié : un séparateur remplace le titre « Récents » */}
       {replie && <div className="mx-3 mb-3 border-t border-white/10" />}
 
       {!replie && (
@@ -474,7 +471,13 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
             replie ? 'flex-col gap-3 pt-5' : 'gap-2 pl-4 pr-3 pt-6 lg:pr-0'
           }`}
         >
-          <img src={LOGO} alt="Fulmar" className={replie ? 'size-8 shrink-0' : 'size-9 shrink-0'} />
+          {/* ✅ LOGO BLANC INTÉGRÉ */}
+          <img 
+            src={LOGO} 
+            alt="Fulmar" 
+            className={`${replie ? 'size-8 shrink-0' : 'size-9 shrink-0'}`} 
+            style={{ filter: 'brightness(0) invert(1)' }} 
+          />
 
           {!replie && (
             <span className="flex-1 font-display text-xl font-extrabold leading-none text-white">
@@ -494,7 +497,7 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
             </button>
           )}
 
-          {/* Replier / Déplier (bureau uniquement), intégré à l'en-tête */}
+          {/* Replier / Déplier (bureau uniquement) */}
           <button
             type="button"
             onClick={onBasculerRepli}

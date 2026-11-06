@@ -8,7 +8,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import useDebounce from '../useDebounce'
-import { messageErreur, tailleLisible } from '../utils'
+import { messageErreur } from '../utils'
 
 const LIMITE = 30
 
@@ -164,11 +164,10 @@ export default function Documents() {
     <>
       <div className="flex h-full flex-col bg-slate-50/50">
         
-        {/* ===== En-tête ===== */}
+        {/* ===== En-tête (Filtres) ===== */}
         <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur md:px-8">
           <div className="mx-auto max-w-[1600px]">
             
-            {/* ✅ Tout est sur la même ligne */}
             <div className="flex flex-wrap items-center gap-3">
               
               {/* Recherche */}
@@ -179,11 +178,11 @@ export default function Documents() {
                   value={recherche}
                   onChange={(e) => setRecherche(e.target.value)}
                   placeholder="Rechercher…"
-                  className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-[#16877D] focus:outline-none focus:ring-2 focus:ring-[#16877D]/15"
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
                 />
               </div>
 
-              {/* Filtres par catégorie (sur la même ligne) */}
+              {/* Filtres par catégorie */}
               <div className="flex flex-wrap gap-1.5">
                 {CATEGORIES.map((c) => {
                   const actif = categorie === c.id
@@ -192,9 +191,9 @@ export default function Documents() {
                       key={c.id || 'tous'}
                       type="button"
                       onClick={() => setCategorie(c.id)}
-                      className={`whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#16877D] ${
+                      className={`whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
                         actif
-                          ? 'border-[#16877D] bg-[#16877D] text-white'
+                          ? 'border-blue-600 bg-blue-600 text-white'
                           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
@@ -265,7 +264,7 @@ export default function Documents() {
 
             {chargement ? (
               <div className="flex h-64 items-center justify-center gap-2 text-sm text-slate-500" role="status">
-                <Loader2 className="size-5 animate-spin text-[#16877D]" aria-hidden="true" />
+                <Loader2 className="size-5 animate-spin text-blue-600" aria-hidden="true" />
                 Chargement des documents…
               </div>
             ) : documents.length === 0 ? (
@@ -288,7 +287,8 @@ export default function Documents() {
                   {documents.length}{peutPlus ? '+' : ''} document{documents.length > 1 ? 's' : ''} trouvé{documents.length > 1 ? 's' : ''}
                 </p>
 
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+                {/* ✅ GRILLE 6 COLONNES */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                   {documents.map((d) => {
                     const cat = categorieDe(d.nom_original)
                     const style = STYLES[cat]
@@ -303,11 +303,12 @@ export default function Documents() {
                     return (
                       <div 
                         key={d.reference_fichier} 
-                        className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-[#16877D]/30 hover:shadow-lg isolate"
+                        className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-500/30 hover:shadow-lg isolate"
                       >
+                        {/* Image ou Icône */}
                         <div 
                           className="relative w-full shrink-0 overflow-hidden bg-slate-100"
-                          style={{ height: '140px', maxHeight: '140px' }}
+                          style={{ height: '110px', maxHeight: '110px' }}
                         >
                           {estImage ? (
                             <img 
@@ -315,53 +316,53 @@ export default function Documents() {
                               alt={d.nom_original}
                               className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                               loading="lazy"
-                              onError={(e) => {
-                                e.target.style.display = 'none'
-                              }}
+                              onError={(e) => { e.target.style.display = 'none' }}
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center">
-                              <div className={`flex size-16 items-center justify-center rounded-2xl ${style.classes}`}>
-                                <Icone className="size-8" aria-hidden="true" />
+                              <div className={`flex size-12 items-center justify-center rounded-xl ${style.classes}`}>
+                                <Icone className="size-6" aria-hidden="true" />
                               </div>
                             </div>
                           )}
 
+                          {/* Actions sur l'image */}
                           {estImage && (
-                            <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                               <button
                                 type="button"
                                 onClick={() => setApercuImage({ url: d.url_preview, nom: d.nom_original })}
                                 title="Voir l'image en grand"
-                                className="rounded-lg bg-black/50 p-1.5 text-white backdrop-blur transition hover:bg-black/70"
+                                className="rounded-md bg-black/50 p-1.5 text-white backdrop-blur transition hover:bg-black/70"
                               >
-                                <Eye className="size-4" />
+                                <Eye className="size-3.5" />
                               </button>
                               {d.conversation?.reference_conversation && (
                                 <Link
                                   to={`/conversations/${d.conversation.reference_conversation}`}
                                   title="Voir dans la conversation"
-                                  className="rounded-lg bg-black/50 p-1.5 text-white backdrop-blur transition hover:bg-black/70"
+                                  className="rounded-md bg-black/50 p-1.5 text-white backdrop-blur transition hover:bg-black/70"
                                 >
-                                  <ExternalLink className="size-4" />
+                                  <ExternalLink className="size-3.5" />
                                 </Link>
                               )}
                             </div>
                           )}
                         </div>
 
-                        <div className="flex min-w-0 flex-1 flex-col justify-between p-4">
+                        {/* Contenu textuel */}
+                        <div className="flex min-w-0 flex-1 flex-col justify-between p-3">
                           <div>
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="truncate text-sm font-bold text-slate-900" title={d.nom_original}>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="line-clamp-2 text-[13px] font-bold leading-tight text-slate-900" title={d.nom_original}>
                                 {d.nom_original}
                               </p>
-                              <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                              <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
                                 {style.label}
                               </span>
                             </div>
                             
-                            <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                            <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500">
                               <span className="truncate">
                                 <strong className="font-semibold text-slate-700">{auteur}</strong>
                                 {' · '}{formaterDate(d.date_envoi)}
@@ -369,9 +370,10 @@ export default function Documents() {
                             </div>
                           </div>
 
-                          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                          {/* Pied de carte : Conversation + Bouton Télécharger */}
+                          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
                             {d.conversation?.titre ? (
-                              <span className="flex max-w-[50%] items-center gap-1.5 truncate text-xs font-medium text-slate-500">
+                              <span className="flex max-w-[45%] items-center gap-1.5 truncate text-[11px] font-medium text-slate-500">
                                 <MessageSquare className="size-3.5 shrink-0 text-slate-400" />
                                 <span className="truncate">{d.conversation.titre}</span>
                               </span>
@@ -379,11 +381,12 @@ export default function Documents() {
                               <span />
                             )}
 
+                            {/* ✅ BOUTON BLEU MODERNE */}
                             <button
                               type="button"
                               onClick={() => telecharger(d)}
                               disabled={telecharge === d.reference_fichier}
-                              className="flex items-center gap-1.5 rounded-lg bg-[#16877D]/10 px-2.5 py-1.5 text-xs font-semibold text-[#16877D] transition-colors hover:bg-[#16877D] hover:text-white disabled:opacity-50"
+                              className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-[11px] font-bold text-blue-600 transition-colors hover:bg-blue-600 hover:text-white disabled:opacity-50"
                             >
                               {telecharge === d.reference_fichier ? (
                                 <Loader2 className="size-3.5 animate-spin" />
@@ -405,7 +408,7 @@ export default function Documents() {
                       type="button"
                       onClick={chargerPlus}
                       disabled={chargementPlus}
-                      className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-[#16877D] disabled:opacity-60"
+                      className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-60"
                     >
                       {chargementPlus ? 'Chargement…' : 'Charger plus de documents'}
                     </button>

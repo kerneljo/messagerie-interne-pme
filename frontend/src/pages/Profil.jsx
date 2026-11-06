@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  AlertTriangle, Check, Copy, Eye, EyeOff, Info, KeyRound, Lock,
-  Monitor, Moon, Shield, Sun,
+  AlertTriangle, Camera, Check, Copy, Eye, EyeOff, Info, KeyRound, Lock,
+  Mail, Monitor, Moon, Pencil, Shield, Smartphone, Sun,
 } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../AuthContext'
@@ -16,8 +16,9 @@ const ONGLETS = [
   { id: 'theme', libelle: 'Apparence' },
 ]
 
-const TAILLE_MAX_PHOTO = 5 * 1024 * 1024 // 5 Mo
+const TAILLE_MAX_PHOTO = 5 * 1024 * 1024
 const TYPES_PHOTO = ['image/jpeg', 'image/png', 'image/webp']
+const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const NIVEAUX_MDP = [
   { label: 'En attente…', couleur: 'bg-slate-300' },
@@ -27,7 +28,6 @@ const NIVEAUX_MDP = [
   { label: 'Excellent', couleur: 'bg-emerald-600' },
 ]
 
-/* Une seule couleur d'accent : l'orange. Le vert reste réservé à la sidebar. */
 const FOCUS =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C2410C]'
 const CARTE = 'rounded-2xl border border-slate-200/80 bg-white shadow-sm'
@@ -84,10 +84,8 @@ export default function Profil() {
 
   useEffect(() => {
     charger()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Navigation clavier entre onglets : ← → Début Fin
   function surToucheOnglet(e, index) {
     if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return
     e.preventDefault()
@@ -104,7 +102,7 @@ export default function Profil() {
 
   if (echec && !profil) {
     return (
-      <div className="mx-auto max-w-[1600px] p-4 md:p-6">
+      <div className="mx-auto max-w-[1400px] p-4 md:p-8"> {/* ✅ Élargi */}
         <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
           <AlertTriangle className="mx-auto mb-3 size-10 text-red-500" aria-hidden="true" />
           <p className="text-sm text-red-700">Impossible de charger le profil.</p>
@@ -117,13 +115,14 @@ export default function Profil() {
   const actif = profil.statut_compte !== 'desactive'
 
   return (
-    <div className="mx-auto max-w-[1600px] px-3 py-5 pb-10 md:px-6 md:py-8">
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-        {/* Colonne gauche : carte d'identité */}
+    // ✅ Conteneur élargi et paddings augmentés
+    <div className="mx-auto max-w-[1400px] px-4 py-6 pb-12 md:px-8 md:py-10 xl:max-w-[1600px]">
+      {/* ✅ Grille plus large et espacée */}
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[340px_minmax(0,1fr)] xl:gap-12">
+        
         <CarteIdentite profil={profil} poste={poste} actif={actif} onChange={charger} />
 
-        {/* Colonne droite : onglets soulignés + contenu */}
-        <div className="flex min-w-0 flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-6">
           <div role="tablist" aria-label="Sections du profil" className="flex gap-7 border-b border-slate-200">
             {ONGLETS.map(({ id, libelle }, index) => {
               const selectionne = onglet === id
@@ -151,7 +150,7 @@ export default function Profil() {
           </div>
 
           <div role="tabpanel" id={`panneau-${onglet}`} aria-labelledby={`onglet-${onglet}`}>
-            {onglet === 'profil' && <OngletProfil profil={profil} poste={poste} />}
+            {onglet === 'profil' && <OngletProfil profil={profil} poste={poste} onChange={charger} />}
             {onglet === 'securite' && <OngletSecurite />}
             {onglet === 'theme' && <OngletTheme />}
           </div>
@@ -225,57 +224,39 @@ function usePhotoProfil(onChange) {
 
 function CarteIdentite({ profil, poste, actif, onChange }) {
   const photo = usePhotoProfil(onChange)
-  const [copie, setCopie] = useState(false)
   const nomComplet = `${profil.prenom ?? ''} ${profil.nom ?? ''}`.trim()
   const ligne = [poste, profil.service?.nom_service].filter(Boolean).join(' · ')
 
-  useEffect(() => {
-    if (!copie) return undefined
-    const t = setTimeout(() => setCopie(false), 1500)
-    return () => clearTimeout(t)
-  }, [copie])
-
-  async function copierEmail() {
-    if (!profil.email) return
-    try {
-      await navigator.clipboard.writeText(profil.email)
-      setCopie(true)
-    } catch {
-      // presse-papiers indisponible : on ignore
-    }
-  }
-
   return (
-    <section className={`${CARTE} flex flex-col gap-4 px-6 py-7`}>
-      <div className="flex flex-col items-center gap-1.5 text-center">
-        {profil.photo_url ? (
-          <img src={profil.photo_url} alt={nomComplet} className="size-24 rounded-full object-cover" />
-        ) : (
-          <div className="flex size-24 items-center justify-center rounded-full bg-slate-200 font-display text-3xl font-extrabold text-slate-800">
-            {profil.prenom?.[0]}
-            {profil.nom?.[0]}
-          </div>
-        )}
+    // ✅ Padding augmenté (p-8) et l'espacement interne (gap-6)
+    <section className={`${CARTE} flex flex-col gap-6 px-8 py-8 lg:sticky lg:top-8`}>
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div className="relative">
+          {profil.photo_url ? (
+            <img src={profil.photo_url} alt={nomComplet} className="size-32 rounded-full object-cover shadow-md" /> // ✅ Photo agrandie (32)
+          ) : (
+            <div className="flex size-32 items-center justify-center rounded-full bg-slate-200 font-display text-4xl font-extrabold text-slate-800 shadow-sm">
+              {profil.prenom?.[0]}
+              {profil.nom?.[0]}
+            </div>
+          )}
 
-        <button
-          type="button"
-          onClick={() => photo.inputRef.current?.click()}
-          disabled={photo.uploadEnCours}
-          aria-busy={photo.uploadEnCours}
-          className={`mt-2 min-h-11 rounded-full border border-slate-300 bg-white px-4 text-[13px] font-semibold text-slate-900 transition hover:bg-slate-50 disabled:opacity-60 ${FOCUS}`}
-        >
-          {photo.uploadEnCours ? 'Envoi…' : 'Changer la photo'}
-        </button>
-
-        {profil.photo_url && (
           <button
             type="button"
-            onClick={() => photo.setConfirmation(true)}
-            className={`min-h-11 rounded-lg px-3 text-sm text-slate-500 transition hover:text-red-600 ${FOCUS}`}
+            onClick={() => photo.inputRef.current?.click()}
+            disabled={photo.uploadEnCours}
+            aria-busy={photo.uploadEnCours}
+            aria-label="Changer la photo de profil"
+            title="Changer la photo"
+            className={`absolute -bottom-1 -right-1 flex size-10 items-center justify-center rounded-full border-2 border-white bg-[#C2410C] text-white shadow-md transition hover:bg-[#9A3412] disabled:opacity-60 ${FOCUS}`}
           >
-            Retirer la photo
+            {photo.uploadEnCours ? (
+              <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+            ) : (
+              <Camera className="size-4" aria-hidden="true" />
+            )}
           </button>
-        )}
+        </div>
 
         <input
           ref={photo.inputRef}
@@ -286,16 +267,26 @@ function CarteIdentite({ profil, poste, actif, onChange }) {
           aria-label="Choisir une photo de profil"
         />
 
+        {profil.photo_url && (
+          <button
+            type="button"
+            onClick={() => photo.setConfirmation(true)}
+            className={`min-h-11 rounded-lg px-3 text-[13px] text-slate-600 transition hover:text-red-600 ${FOCUS}`}
+          >
+            Retirer la photo
+          </button>
+        )}
+
         {photo.erreur && (
           <p className="text-sm text-red-600" role="alert">
             {photo.erreur}
           </p>
         )}
 
-        <h2 className="mt-2 font-display text-xl font-extrabold text-slate-900">{nomComplet}</h2>
-        {ligne && <p className="text-slate-600">{ligne}</p>}
+        <h2 className="mt-3 font-display text-2xl font-extrabold text-slate-900">{nomComplet}</h2> {/* ✅ Titre agrandi */}
+        {ligne && <p className="text-sm text-slate-600">{ligne}</p>}
 
-        <div className="mt-1 flex flex-wrap justify-center gap-2">
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
           {profil.role?.libelle && (
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
               {profil.role.libelle}
@@ -309,32 +300,13 @@ function CarteIdentite({ profil, poste, actif, onChange }) {
         </div>
       </div>
 
-      <dl className="flex flex-col gap-3.5 border-t border-slate-200/80 pt-4 text-sm">
-        <div>
-          <dt className="text-xs text-slate-600">Adresse e-mail</dt>
-          <dd className="flex items-center justify-between gap-2 font-semibold text-slate-900">
-            <span className="min-w-0 break-all">{profil.email}</span>
-            <button
-              type="button"
-              onClick={copierEmail}
-              className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${FOCUS}`}
-              aria-label={copie ? 'Adresse copiée' : "Copier l'adresse e-mail"}
-            >
-              {copie ? (
-                <Check className="size-4 text-emerald-600" aria-hidden="true" />
-              ) : (
-                <Copy className="size-4" aria-hidden="true" />
-              )}
-              {copie ? 'Copié' : 'Copier'}
-            </button>
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-slate-600">Compte créé le</dt>
+      <dl className="flex flex-col gap-5 border-t border-slate-200/80 pt-6 text-sm"> {/* ✅ Gaps augmentés */}
+        <div className="flex flex-col gap-1">
+          <dt className="text-[13px] text-slate-600">Compte créé le</dt>
           <dd className="font-semibold text-slate-900">{formaterDate(profil.date_creation, false)}</dd>
         </div>
-        <div>
-          <dt className="text-xs text-slate-600">Dernière connexion</dt>
+        <div className="flex flex-col gap-1">
+          <dt className="text-[13px] text-slate-600">Dernière connexion</dt>
           <dd className="font-semibold text-slate-900">{formaterDate(profil.derniere_connexion)}</dd>
         </div>
       </dl>
@@ -358,8 +330,9 @@ function CarteIdentite({ profil, poste, actif, onChange }) {
 
 function Ligne({ label, children, derniere = false }) {
   return (
+    // ✅ Paddings verticaux augmentés (py-4)
     <div
-      className={`grid grid-cols-1 gap-0.5 py-3.5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-4 ${
+      className={`grid grid-cols-1 gap-1 py-4 sm:grid-cols-[190px_minmax(0,1fr)] sm:gap-6 ${
         derniere ? '' : 'border-b border-slate-100'
       }`}
     >
@@ -369,24 +342,29 @@ function Ligne({ label, children, derniere = false }) {
   )
 }
 
-function OngletProfil({ profil, poste }) {
+function OngletProfil({ profil, poste, onChange }) {
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6"> {/* ✅ Gap augmenté */}
+      <CarteCoordonnees profil={profil} onChange={onChange} />
+
       <section className={CARTE}>
-        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 px-6 py-4">
-          <h3 className="font-display text-base font-extrabold text-slate-900">Informations</h3>
-          <span className="flex items-center gap-1.5 text-xs text-slate-600">
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 px-8 py-5"> {/* ✅ Padding augmenté */}
+          <h3 className="font-display text-lg font-extrabold text-slate-900">Informations professionnelles</h3>
+          <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
             <Lock className="size-3" aria-hidden="true" />
             Géré par l'administrateur
           </span>
         </header>
-        <dl className="px-6 text-sm">
+        <dl className="px-8 pb-3 text-sm">
           <Ligne label="Prénom">{profil.prenom}</Ligne>
           <Ligne label="Nom">{profil.nom}</Ligne>
           <Ligne label="Intitulé">{poste || '—'}</Ligne>
           <Ligne label="Service">{profil.service?.nom_service || '—'}</Ligne>
           <Ligne label="Rôle" derniere>{profil.role?.libelle || '—'}</Ligne>
         </dl>
+        <p className="border-t border-slate-100 px-8 py-4 text-[13px] text-slate-600"> {/* ✅ Padding augmenté */}
+          Une correction est nécessaire ? Contactez votre administrateur.
+        </p>
       </section>
 
       <AppareilsConnectes />
@@ -394,12 +372,219 @@ function OngletProfil({ profil, poste }) {
   )
 }
 
-/* ───────────────────────────── Appareils connectés ─────────────────────────────
-   Attend du backend :
-     GET    /api/profil/sessions      → [{ id, appareil, systeme, lieu, derniere_activite, actuelle }]
-     DELETE /api/profil/sessions/:id  → ferme une session
-     DELETE /api/profil/sessions      → ferme toutes les sessions sauf la courante
-   Si la route n'existe pas encore, seul l'appareil actuel est affiché (déduit du navigateur). */
+/* ───────────────────────────── Coordonnées (e-mail modifiable) ───────────────────────────── */
+
+function CarteCoordonnees({ profil, onChange }) {
+  const [edition, setEdition] = useState(false)
+  const [email, setEmail] = useState(profil.email || '')
+  const [motDePasse, setMotDePasse] = useState('')
+  const [voir, setVoir] = useState(false)
+  const [envoi, setEnvoi] = useState(false)
+  const [erreur, setErreur] = useState('')
+  const [erreursChamps, setErreursChamps] = useState({})
+  const [succes, setSucces] = useState('')
+  const [copie, setCopie] = useState(false)
+
+  useEffect(() => {
+    if (!copie) return undefined
+    const t = setTimeout(() => setCopie(false), 1500)
+    return () => clearTimeout(t)
+  }, [copie])
+
+  useEffect(() => {
+    if (!succes) return undefined
+    const t = setTimeout(() => setSucces(''), 5000)
+    return () => clearTimeout(t)
+  }, [succes])
+
+  async function copier() {
+    if (!profil.email) return
+    try {
+      await navigator.clipboard.writeText(profil.email)
+      setCopie(true)
+    } catch {
+      // presse-papiers indisponible
+    }
+  }
+
+  function ouvrir() {
+    setEmail(profil.email || '')
+    setMotDePasse('')
+    setErreur('')
+    setErreursChamps({})
+    setSucces('')
+    setEdition(true)
+  }
+
+  function annuler() {
+    setEdition(false)
+    setErreur('')
+    setErreursChamps({})
+    setMotDePasse('')
+  }
+
+  async function enregistrer(e) {
+    e.preventDefault()
+    setErreur('')
+    setErreursChamps({})
+
+    const propre = email.trim()
+    if (!REGEX_EMAIL.test(propre)) {
+      setErreursChamps({ email: ['Adresse e-mail invalide.'] })
+      return
+    }
+    if (propre.toLowerCase() === (profil.email || '').toLowerCase()) {
+      setErreursChamps({ email: ['C\'est déjà votre adresse actuelle.'] })
+      return
+    }
+
+    setEnvoi(true)
+    try {
+      const r = await api.put('/api/profil/email', {
+        email: propre,
+        mot_de_passe_actuel: motDePasse,
+      })
+      setSucces(r.data?.message || 'Adresse e-mail mise à jour.')
+      setEdition(false)
+      setMotDePasse('')
+      await onChange()
+    } catch (err) {
+      const data = err.response?.data
+      if (data?.errors) setErreursChamps(data.errors)
+      setErreur(data?.errors ? '' : data?.message || 'Modification impossible.')
+    } finally {
+      setEnvoi(false)
+    }
+  }
+
+  const erreurEmail = erreursChamps.email?.[0]
+
+  return (
+    <section className={CARTE}>
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 px-8 py-5">
+        <h3 className="font-display text-lg font-extrabold text-slate-900">Coordonnées</h3>
+        {!edition && (
+          <button
+            type="button"
+            onClick={ouvrir}
+            className={`flex min-h-11 items-center gap-2 rounded-[10px] border border-slate-300 bg-white px-5 text-[13px] font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50 hover:shadow ${FOCUS}`}
+          >
+            <Pencil className="size-4" aria-hidden="true" />
+            Modifier
+          </button>
+        )}
+      </header>
+
+      {succes && (
+        <div
+          className="mx-8 mt-5 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4"
+          role="status"
+        >
+          <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+          <p className="text-sm text-emerald-800">{succes}</p>
+        </div>
+      )}
+
+      {!edition ? (
+        <dl className="px-8 pb-3 text-sm">
+          <Ligne label="Adresse e-mail" derniere>
+            <div className="flex items-center justify-between gap-4">
+              <span className="flex min-w-0 items-center gap-2.5">
+                <Mail className="size-5 shrink-0 text-slate-400" aria-hidden="true" />
+                <span className="min-w-0 break-all text-base">{profil.email || '—'}</span>
+              </span>
+              {profil.email && (
+                <button
+                  type="button"
+                  onClick={copier}
+                  className={`flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${FOCUS}`}
+                  aria-label={copie ? 'Adresse copiée' : "Copier l'adresse e-mail"}
+                >
+                  {copie ? (
+                    <Check className="size-4 text-emerald-600" aria-hidden="true" />
+                  ) : (
+                    <Copy className="size-4" aria-hidden="true" />
+                  )}
+                  {copie ? 'Copié' : 'Copier'}
+                </button>
+              )}
+            </div>
+          </Ligne>
+        </dl>
+      ) : (
+        <form onSubmit={enregistrer} className="space-y-6 px-8 py-6">
+          <div>
+            <label htmlFor="nouvel_email" className="mb-2 block text-sm font-semibold text-slate-700">
+              Nouvelle adresse e-mail
+            </label>
+            <input
+              id="nouvel_email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+              autoFocus
+              aria-invalid={Boolean(erreurEmail)}
+              aria-describedby={erreurEmail ? 'nouvel_email-aide' : undefined}
+              className={`w-full rounded-xl border bg-white px-4 py-3.5 text-sm text-slate-900 transition-all placeholder:text-slate-400 focus:outline-none focus:ring-4 ${
+                erreurEmail
+                  ? 'border-red-300 focus:border-red-400 focus:ring-red-500/15'
+                  : 'border-slate-200 focus:border-[#C2410C] focus:ring-[#C2410C]/15'
+              }`}
+            />
+            {erreurEmail && (
+              <p id="nouvel_email-aide" className="mt-2 flex items-center gap-1 text-xs text-red-600">
+                <AlertTriangle className="size-3" aria-hidden="true" />
+                {erreurEmail}
+              </p>
+            )}
+          </div>
+
+          <ChampMdp
+            id="mdp_confirmation_email"
+            label="Mot de passe actuel"
+            value={motDePasse}
+            onChange={setMotDePasse}
+            erreur={erreursChamps.mot_de_passe_actuel?.[0]}
+            voir={voir}
+            setVoir={setVoir}
+            autoComplete="current-password"
+            aide="Demandé pour confirmer qu'il s'agit bien de vous."
+          />
+
+          {erreur && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-500" aria-hidden="true" />
+              <p className="text-sm text-red-700">{erreur}</p>
+            </div>
+          )}
+
+          <div className="flex flex-wrap justify-end gap-4 border-t border-slate-200/70 pt-6">
+            <button
+              type="button"
+              onClick={annuler}
+              disabled={envoi}
+              className={`min-h-11 rounded-[10px] border border-slate-300 bg-white px-5 text-[13px] font-semibold text-slate-900 transition hover:bg-slate-50 disabled:opacity-60 ${FOCUS}`}
+            >
+              Annuler
+            </button>
+            <Bouton
+              type="submit"
+              variante="primaire"
+              disabled={envoi || !email.trim() || !motDePasse}
+              className="px-6 py-3 font-semibold"
+            >
+              {envoi ? 'Enregistrement…' : "Enregistrer l'adresse"}
+            </Bouton>
+          </div>
+        </form>
+      )}
+    </section>
+  )
+}
+
+/* ───────────────────────────── Appareils connectés ───────────────────────────── */
 
 function appareilLocal() {
   const ua = navigator.userAgent
@@ -410,8 +595,18 @@ function appareilLocal() {
   return { id: 'local', appareil: nav, systeme: sys, lieu: '', derniere_activite: new Date().toISOString(), actuelle: true }
 }
 
+function IconeAppareil({ systeme }) {
+  const mobile = /Android|iOS/.test(systeme || '')
+  const Icone = mobile ? Smartphone : Monitor
+  return (
+    <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+      <Icone className="size-6" aria-hidden="true" />
+    </span>
+  )
+}
+
 function AppareilsConnectes() {
-  const [sessions, setSessions] = useState(undefined) // undefined = chargement, null = indisponible
+  const [sessions, setSessions] = useState(undefined)
   const [erreur, setErreur] = useState('')
   const [confirmation, setConfirmation] = useState(false)
   const [enCours, setEnCours] = useState(false)
@@ -462,13 +657,13 @@ function AppareilsConnectes() {
 
   return (
     <section className={CARTE} aria-label="Appareils connectés">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 px-6 py-4">
-        <h3 className="font-display text-base font-extrabold text-slate-900">Appareils connectés</h3>
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 px-8 py-5">
+        <h3 className="font-display text-lg font-extrabold text-slate-900">Appareils connectés</h3>
         {autres.length > 0 && (
           <button
             type="button"
             onClick={() => setConfirmation(true)}
-            className={`min-h-11 rounded-[10px] bg-[#C2410C] px-4 text-[13px] font-semibold text-white transition hover:bg-[#9A3412] ${FOCUS}`}
+            className={`min-h-11 rounded-[10px] bg-[#C2410C] px-5 text-[13px] font-semibold text-white transition hover:bg-[#9A3412] ${FOCUS}`}
           >
             Déconnecter les autres appareils
           </button>
@@ -476,41 +671,50 @@ function AppareilsConnectes() {
       </header>
 
       {erreur && (
-        <p className="px-6 pt-3 text-sm text-red-600" role="alert">
+        <p className="px-8 pt-4 text-sm text-red-600" role="alert">
           {erreur}
         </p>
       )}
 
       <ul className="divide-y divide-slate-100">
-        {liste.map((s) => (
-          <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-            <div className="min-w-0">
-              <p className="font-semibold text-slate-900">
-                {[s.appareil, s.systeme].filter(Boolean).join(' · ') || 'Appareil inconnu'}
-              </p>
-              <p className="text-[13px] text-slate-600">
-                {[s.lieu, ilYA(s.derniere_activite)].filter(Boolean).join(' · ')}
-              </p>
-            </div>
-            {s.actuelle ? (
-              <span className="rounded-full bg-[#0B2925] px-3 py-1 text-xs font-semibold text-white">
-                Cet appareil
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fermer(s.id)}
-                className={`min-h-11 rounded-[10px] border border-slate-300 bg-white px-4 text-[13px] font-semibold text-red-700 transition hover:bg-red-50 ${FOCUS}`}
-              >
-                Déconnecter
-              </button>
-            )}
-          </li>
-        ))}
+        {liste.map((s) => {
+          const maintenant = ilYA(s.derniere_activite) === 'active maintenant'
+          return (
+            <li key={s.id} className="flex flex-wrap items-center justify-between gap-4 px-8 py-5">
+              <div className="flex min-w-0 items-center gap-4">
+                <IconeAppareil systeme={s.systeme} />
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900 text-base">
+                    {[s.appareil, s.systeme].filter(Boolean).join(' · ') || 'Appareil inconnu'}
+                  </p>
+                  <p className="flex items-center gap-2 text-[13px] text-slate-600 mt-0.5">
+                    {maintenant && (
+                      <span className="size-2 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+                    )}
+                    {[s.lieu, ilYA(s.derniere_activite)].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+              </div>
+              {s.actuelle ? (
+                <span className="rounded-full bg-[#0B2925] px-4 py-1.5 text-xs font-semibold text-white">
+                  Cet appareil
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fermer(s.id)}
+                  className={`min-h-11 rounded-[10px] border border-slate-300 bg-white px-5 text-[13px] font-semibold text-red-700 transition hover:bg-red-50 ${FOCUS}`}
+                >
+                  Déconnecter
+                </button>
+              )}
+            </li>
+          )
+        })}
       </ul>
 
       {disponible && autres.length === 0 && (
-        <p className="border-t border-slate-100 px-6 py-3 text-[13px] text-slate-600">
+        <p className="border-t border-slate-100 px-8 py-4 text-[13px] text-slate-600">
           Aucune autre session active.
         </p>
       )}
@@ -589,19 +793,19 @@ function OngletSecurite() {
   const niveau = NIVEAUX_MDP[nbValides]
 
   return (
-    <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-5">
-      <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70 sm:p-8 lg:col-span-3">
-        <header className="mb-7 flex items-start gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-            <KeyRound className="size-5" aria-hidden="true" />
+    <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <section className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200/70 sm:p-10">
+        <header className="mb-8 flex items-start gap-4">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+            <KeyRound className="size-6" aria-hidden="true" />
           </span>
           <div>
             <h3 className="font-display text-xl font-bold text-slate-900">Modifier le mot de passe</h3>
-            <p className="mt-0.5 text-sm text-slate-500">Choisissez un mot de passe fort et unique.</p>
+            <p className="mt-1 text-sm text-slate-600">Choisissez un mot de passe fort et unique.</p>
           </div>
         </header>
 
-        <form onSubmit={soumettre} className="space-y-5">
+        <form onSubmit={soumettre} className="space-y-6">
           <ChampMdp
             id="mot_de_passe_actuel"
             label="Mot de passe actuel"
@@ -610,11 +814,12 @@ function OngletSecurite() {
             erreur={erreurDe('mot_de_passe_actuel')}
             voir={voir}
             setVoir={setVoir}
+            autoComplete="current-password"
           />
 
           <div className="h-px bg-slate-200/70" />
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <ChampMdp
               id="nouveau_mot_de_passe"
               label="Nouveau mot de passe"
@@ -623,13 +828,13 @@ function OngletSecurite() {
               erreur={erreurDe('nouveau_mot_de_passe')}
               voir={voir}
               setVoir={setVoir}
-              placeholder="8 caractères minimum"
+              placeholder="Min. 8 caractères"
               aide="Un mélange de lettres, chiffres et symboles."
             />
 
             <ChampMdp
               id="nouveau_mot_de_passe_confirmation"
-              label="Confirmer le nouveau mot de passe"
+              label="Confirmer le mot de passe"
               value={confirmation}
               onChange={setConfirmation}
               erreur={erreurDe('nouveau_mot_de_passe_confirmation')}
@@ -640,24 +845,24 @@ function OngletSecurite() {
           </div>
 
           {erreur && (
-            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3" role="alert">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-500" aria-hidden="true" />
+            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-red-500" aria-hidden="true" />
               <p className="text-sm text-red-700">{erreur}</p>
             </div>
           )}
           {succes && (
-            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3" role="status">
-              <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4" role="status">
+              <Check className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden="true" />
               <p className="text-sm text-emerald-800">{succes}</p>
             </div>
           )}
 
-          <div className="flex justify-end border-t border-slate-200/70 pt-5">
+          <div className="flex justify-end border-t border-slate-200/70 pt-6">
             <Bouton
               type="submit"
               variante="primaire"
               disabled={envoi || !motDePasseActuel || !nouveau || !confirmation}
-              className="px-5 py-2.5 font-semibold"
+              className="px-6 py-3 font-semibold"
             >
               <KeyRound className="size-4" aria-hidden="true" />
               {envoi ? 'Modification…' : 'Changer le mot de passe'}
@@ -666,49 +871,49 @@ function OngletSecurite() {
         </form>
       </section>
 
-      <div className="space-y-5 lg:col-span-2">
+      <div className="space-y-6">
         <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70">
-          <div className="mb-4 flex items-center gap-2">
-            <Shield className="size-4 text-slate-500" aria-hidden="true" />
+          <div className="mb-5 flex items-center gap-2">
+            <Shield className="size-5 shrink-0 text-slate-600" aria-hidden="true" />
             <h4 className="font-display text-base font-bold text-slate-900">Solidité du mot de passe</h4>
           </div>
 
-          <div className="mb-5">
-            <div className="mb-2 flex gap-1.5">
+          <div className="mb-6">
+            <div className="mb-3 flex gap-1.5">
               {[0, 1, 2, 3].map((i) => (
                 <span
                   key={i}
-                  className={`h-2 flex-1 rounded-full transition-colors duration-300 ${i < nbValides ? niveau.couleur : 'bg-slate-200'}`}
+                  className={`h-2.5 flex-1 rounded-full transition-colors duration-300 ${i < nbValides ? niveau.couleur : 'bg-slate-200'}`}
                 />
               ))}
             </div>
-            <p className="text-xs font-semibold text-slate-600" aria-live="polite">{niveau.label}</p>
+            <p className="text-sm font-semibold text-slate-600" aria-live="polite">{niveau.label}</p>
           </div>
 
-          <ul className="space-y-2.5">
+          <ul className="space-y-3">
             {exigences.map((e) => (
-              <li key={e.label} className="flex items-center gap-2.5 text-xs">
+              <li key={e.label} className="flex items-center gap-3 text-sm">
                 <span
-                  className={`flex size-5 shrink-0 items-center justify-center rounded-md transition-colors ${
-                    e.valide ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-md transition-colors ${
+                    e.valide ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500'
                   }`}
                 >
-                  <Check className="size-3" strokeWidth={3} aria-hidden="true" />
+                  <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />
                 </span>
-                <span className={e.valide ? 'font-semibold text-slate-800' : 'text-slate-500'}>{e.label}</span>
+                <span className={e.valide ? 'font-semibold text-slate-800' : 'text-slate-600'}>{e.label}</span>
                 <span className="sr-only">{e.valide ? '(validé)' : '(non validé)'}</span>
               </li>
             ))}
           </ul>
         </section>
 
-        <section className="flex items-start gap-3 rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-700">
-            <Info className="size-4" aria-hidden="true" />
+        <section className="flex items-start gap-3 rounded-2xl bg-slate-50 p-6 ring-1 ring-slate-200">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-700">
+            <Info className="size-5" aria-hidden="true" />
           </span>
           <div>
             <h4 className="font-display text-sm font-bold text-slate-900">Bon réflexe</h4>
-            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+            <p className="mt-1.5 text-[13px] leading-relaxed text-slate-600">
               Après avoir changé votre mot de passe, pensez à vous déconnecter des autres appareils
               si votre compte a été compromis.
             </p>
@@ -719,7 +924,10 @@ function OngletSecurite() {
   )
 }
 
-function ChampMdp({ id, label, value, onChange, erreur, voir, setVoir, placeholder, valide, aide }) {
+function ChampMdp({
+  id, label, value, onChange, erreur, voir, setVoir, placeholder, valide, aide,
+  autoComplete = 'new-password',
+}) {
   const bordure = erreur
     ? 'border-red-300 focus:border-red-400 focus:ring-red-500/15'
     : valide
@@ -728,7 +936,7 @@ function ChampMdp({ id, label, value, onChange, erreur, voir, setVoir, placehold
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-slate-700">
+      <label htmlFor={id} className="mb-2 block text-sm font-semibold text-slate-700">
         {label}
       </label>
       <div className="relative">
@@ -738,16 +946,16 @@ function ChampMdp({ id, label, value, onChange, erreur, voir, setVoir, placehold
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          autoComplete="new-password"
+          autoComplete={autoComplete}
           required
           aria-invalid={Boolean(erreur)}
           aria-describedby={erreur || aide ? `${id}-aide` : undefined}
-          className={`w-full rounded-xl border bg-white py-3 pl-4 pr-12 text-sm text-slate-900 transition-all placeholder:text-slate-400 focus:outline-none focus:ring-4 ${bordure}`}
+          className={`w-full rounded-xl border bg-white py-3.5 pl-4 pr-12 text-sm text-slate-900 transition-all placeholder:text-slate-400 focus:outline-none focus:ring-4 ${bordure}`}
         />
         <button
           type="button"
           onClick={() => setVoir(!voir)}
-          className={`absolute inset-y-0 right-0 flex items-center rounded-r-xl pr-4 text-slate-400 transition-colors hover:text-slate-700 ${FOCUS}`}
+          className={`absolute inset-y-0 right-0 flex items-center rounded-r-xl pr-4 text-slate-500 transition-colors hover:text-slate-800 ${FOCUS}`}
           aria-label={voir ? 'Masquer les mots de passe' : 'Afficher les mots de passe'}
           title={voir ? 'Masquer' : 'Afficher'}
         >
@@ -755,12 +963,12 @@ function ChampMdp({ id, label, value, onChange, erreur, voir, setVoir, placehold
         </button>
       </div>
       {erreur ? (
-        <p id={`${id}-aide`} className="mt-1.5 flex items-center gap-1 text-xs text-red-600">
+        <p id={`${id}-aide`} className="mt-2 flex items-center gap-1 text-xs text-red-600">
           <AlertTriangle className="size-3" aria-hidden="true" />
           {erreur}
         </p>
       ) : aide ? (
-        <p id={`${id}-aide`} className="mt-1.5 text-xs text-slate-500">{aide}</p>
+        <p id={`${id}-aide`} className="mt-2 text-xs text-slate-600">{aide}</p>
       ) : null}
     </div>
   )
@@ -815,9 +1023,12 @@ function OngletTheme() {
     <div className="space-y-6">
       <header>
         <h3 className="font-display text-xl font-bold text-slate-900">Apparence</h3>
+        <p className="mt-1 text-sm text-slate-600">
+          Choisissez l'ambiance de l'interface. Le changement est appliqué immédiatement.
+        </p>
       </header>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {THEMES_DISPONIBLES.map((t) => (
           <CarteTheme
             key={t.id}
@@ -861,21 +1072,21 @@ function CarteTheme({ theme, selectionne, onSelectionner }) {
         </div>
       </div>
 
-      <div className="flex items-start gap-2.5 px-1">
+      <div className="flex items-start gap-3 px-2 pb-1">
         <span
-          className="flex size-8 shrink-0 items-center justify-center rounded-xl"
+          className="flex size-9 shrink-0 items-center justify-center rounded-xl"
           style={{ backgroundColor: c.sidebar, color: '#fff' }}
         >
           <Icone className="size-4" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-slate-900">{theme.nom}</p>
-          <p className="mt-0.5 text-xs text-slate-500">{theme.description}</p>
+          <p className="mt-0.5 text-xs text-slate-600">{theme.description}</p>
         </div>
       </div>
 
       {selectionne && (
-        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-[#C2410C] px-2.5 py-1 text-xs font-semibold text-white shadow-lg">
+        <span className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-[#C2410C] px-3 py-1 text-xs font-semibold text-white shadow-lg">
           <Check className="size-3" strokeWidth={3} aria-hidden="true" />
           Actif
         </span>
@@ -884,12 +1095,10 @@ function CarteTheme({ theme, selectionne, onSelectionner }) {
   )
 }
 
-/* Mockup dessiné (fallback pour les thèmes sans image) */
 function ApercuMockup({ couleurs }) {
   const c = couleurs
   return (
     <div className="flex size-full" style={{ backgroundColor: c.fond }}>
-      {/* Sidebar */}
       <div className="flex w-1/4 flex-col gap-2 p-2" style={{ backgroundColor: c.sidebar }}>
         <div className="flex items-center gap-1">
           <div className="size-2.5 rounded-full" style={{ backgroundColor: c.bulleEnvoyee }} />
@@ -906,7 +1115,6 @@ function ApercuMockup({ couleurs }) {
         </div>
       </div>
 
-      {/* Zone messages */}
       <div className="flex flex-1 flex-col justify-end gap-1.5 p-2.5">
         <div className="h-3 w-3/5 self-start rounded-full" style={{ backgroundColor: c.bulleRecue }} />
         <div className="h-3 w-2/5 self-start rounded-full" style={{ backgroundColor: c.bulleRecue }} />
