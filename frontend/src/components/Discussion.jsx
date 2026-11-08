@@ -16,7 +16,7 @@ import EmojiPicker, { LARGEUR_PICKER, HAUTEUR_PICKER } from './EmojiPicker'
 import Bulle, { BulleAnimee } from './Bulle'
 import FondDiscussion from './FondDiscussion'
 import NotificationsMenu from './NotificationsMenu'
-import ParametresGroupe from './ParametresGroupe' // ← AJOUT
+import ParametresGroupe from './ParametresGroupe'
 import {
   avecAccuse, BandeauEngagement, EtiquetteCategorie,
   minEcheanceLocale, PanneauSuivi, PanneauVersions, SelecteurCategorie,
@@ -35,6 +35,10 @@ const DISTANCE_BOUTON_BAS = 200
 const DECALAGE_SEPARATEUR = 76
 const HAUTEUR_BARRE_RECHERCHE = 48
 const MASQUE_BAS = 'linear-gradient(to bottom, #000 calc(100% - 28px), transparent)'
+
+/* Focus : action-600 existe dans index.css (lagon-400/500/600/700 n'existent pas) */
+const FOCUS =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action-600'
 
 function extension(nom) {
   return nom.includes('.') ? nom.split('.').pop().toLowerCase() : ''
@@ -69,7 +73,6 @@ export default function Discussion({ conversation, onLu, onRetour }) {
   const { utilisateur } = useAuth()
   const ref = conversation.reference_conversation
 
-  // ↓ AJOUT : état pour ouvrir les paramètres du groupe
   const [parametresOuverts, setParametresOuverts] = useState(false)
 
   const [messages, setMessages] = useState([])
@@ -535,7 +538,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
     }),
   }))
 
-  // ↓ AJOUT : si les paramètres sont ouverts, on affiche la page à la place
+  // Si les paramètres du groupe sont ouverts, on affiche cette page à la place
   if (parametresOuverts && conversation.type === 'GROUPE') {
     return (
       <ParametresGroupe
@@ -553,18 +556,18 @@ export default function Discussion({ conversation, onLu, onRetour }) {
       <header className="absolute inset-x-0 top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200/70 bg-papier/90 px-4 backdrop-blur-xl md:px-6">
         <button
           type="button"
-          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-900/5 md:hidden"
+          className={`rounded-lg p-1.5 text-slate-600 hover:bg-slate-900/5 md:hidden ${FOCUS}`}
           onClick={onRetour}
           aria-label="Retour à la liste"
         >
-          <ArrowLeft className="size-5" />
+          <ArrowLeft className="size-5" aria-hidden="true" />
         </button>
 
         <div className="flex min-w-0 flex-1 items-center gap-3">
           {conversation.type === 'DIRECT' && autre?.matricule ? (
             <Link
               to={`/utilisateurs/${autre.matricule}`}
-              className="-mx-2 flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 transition hover:bg-slate-900/5"
+              className={`-mx-2 flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 transition hover:bg-slate-900/5 ${FOCUS}`}
             >
               <Avatar prenom={autre.prenom} nom={autre.nom} photoUrl={autre.photo_url} />
               <div className="min-w-0">
@@ -573,11 +576,10 @@ export default function Discussion({ conversation, onLu, onRetour }) {
               </div>
             </Link>
           ) : conversation.type === 'GROUPE' ? (
-            /* ↓ En-tête cliquable pour les groupes */
             <button
               type="button"
               onClick={() => setParametresOuverts(true)}
-              className="-mx-2 flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 text-left transition hover:bg-slate-900/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lagon-600"
+              className={`-mx-2 flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 text-left transition hover:bg-slate-900/5 ${FOCUS}`}
               aria-label={`Ouvrir les paramètres du groupe ${conversation.titre}`}
             >
               <Avatar prenom={conversation.titre} nom="" photoUrl={conversation.photo_url} />
@@ -603,13 +605,13 @@ export default function Discussion({ conversation, onLu, onRetour }) {
           aria-label="Rechercher dans la conversation"
           aria-expanded={rechercheOuverte}
           title="Rechercher dans la conversation"
-          className={`flex size-9 shrink-0 items-center justify-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lagon-600 ${
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full transition ${FOCUS} ${
             rechercheOuverte
               ? 'bg-slate-200 text-slate-900'
               : 'text-slate-600 hover:bg-slate-900/5 hover:text-slate-900'
           }`}
         >
-          <Search className="size-[18px]" />
+          <Search className="size-[18px]" aria-hidden="true" />
         </button>
 
         <NotificationsMenu />
@@ -654,7 +656,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
               title="Plus ancien (Entrée)"
               className="flex size-8 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-900/5 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <ChevronUp className="size-4" />
+              <ChevronUp className="size-4" aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -664,7 +666,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
               title="Plus récent (Maj + Entrée)"
               className="flex size-8 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-900/5 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <ChevronDown className="size-4" />
+              <ChevronDown className="size-4" aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -673,7 +675,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
               title="Fermer (Échap)"
               className="flex size-8 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-900/5"
             >
-              <X className="size-4" />
+              <X className="size-4" aria-hidden="true" />
             </button>
           </motion.div>
         )}
@@ -699,7 +701,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
           {jours.map((jour) => (
             <section key={jour.cle} className="flex flex-col">
               <div
-                className="sticky z-10 my-2 self-center rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm backdrop-blur-md"
+                className="sticky z-10 my-2 self-center rounded-full bg-papier/80 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm backdrop-blur-md"
                 style={{
                   top: rechercheOuverte ? DECALAGE_SEPARATEUR + HAUTEUR_BARRE_RECHERCHE : DECALAGE_SEPARATEUR,
                 }}
@@ -719,42 +721,51 @@ export default function Discussion({ conversation, onLu, onRetour }) {
                       id={`msg-${m.reference_message}`}
                       className={`-mx-2 rounded-xl px-2 transition-colors duration-300 ${
                         debutJour ? 'mt-1' : premier ? 'mt-3' : 'mt-0.5'
-                      } ${estCourant ? 'bg-white/50' : correspond ? 'bg-white/20' : ''}`}
+                      } ${
+                        estCourant
+                          ? 'bg-yellow-200/50 dark:bg-yellow-400/15'
+                          : correspond
+                            ? 'bg-yellow-200/25 dark:bg-yellow-400/[0.07]'
+                            : ''
+                      }`}
                     >
-                     {/* ✅ Conteneur qui empile l'étiquette et la bulle */}
-<div className={`flex flex-col ${moi ? 'items-end' : 'items-start'}`}>
-  
-  {/* L'étiquette est au-dessus, alignée du même côté que la bulle */}
-  {etiquette && (
-    <div className="mb-1 mr-1">
-      <EtiquetteCategorie message={m} moi={moi} />
-    </div>
-  )}
+                      {/* Conteneur qui empile l'étiquette et la bulle */}
+                      <div className={`flex flex-col ${moi ? 'items-end' : 'items-start'}`}>
+                        {/* L'étiquette est au-dessus, alignée du même côté que la bulle */}
+                        {etiquette && (
+                          <div className="mb-1 mr-1">
+                            <EtiquetteCategorie message={m} moi={moi} />
+                          </div>
+                        )}
 
-  {/* La bulle est en dessous */}
-  <BulleAnimee>
-    <Bulle
-      m={m}
-      moi={moi}
-      conversation={conversation}
-      premierDuGroupe={premier}
-      onRepondre={(msg) => { setEdition(null); setReponseA(msg); requestAnimationFrame(() => textareaRef.current?.focus()) }}
-      onModifier={modifier}
-      onSupprimer={supprimer}
-      onReagir={reagir}
-      onOuvrirEmoji={ouvrirPickerEmoji}
-    />
+                        {/* La bulle est en dessous */}
+                        <BulleAnimee>
+                          <Bulle
+                            m={m}
+                            moi={moi}
+                            conversation={conversation}
+                            premierDuGroupe={premier}
+                            onRepondre={(msg) => {
+                              setEdition(null)
+                              setReponseA(msg)
+                              requestAnimationFrame(() => textareaRef.current?.focus())
+                            }}
+                            onModifier={modifier}
+                            onSupprimer={supprimer}
+                            onReagir={reagir}
+                            onOuvrirEmoji={ouvrirPickerEmoji}
+                          />
 
-    <BandeauEngagement
-      message={m}
-      moi={moi}
-      enCours={accuseEnCours === m.reference_message}
-      onAccuser={(statut) => accuser(m, statut)}
-      onSuivre={() => setSuiviPour(m)}
-      onVersions={() => setVersionsPour(m)}
-    />
-  </BulleAnimee>
-</div>
+                          <BandeauEngagement
+                            message={m}
+                            moi={moi}
+                            enCours={accuseEnCours === m.reference_message}
+                            onAccuser={(statut) => accuser(m, statut)}
+                            onSuivre={() => setSuiviPour(m)}
+                            onVersions={() => setVersionsPour(m)}
+                          />
+                        </BulleAnimee>
+                      </div>
                     </div>
                   )
                 })}
@@ -771,7 +782,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 6, scale: 0.95 }}
                 transition={{ duration: 0.18 }}
-                className="mt-3 inline-flex items-center gap-2 self-start rounded-2xl rounded-tl-md bg-white px-3.5 py-2.5 shadow-sm ring-1 ring-black/5"
+                className="mt-3 inline-flex items-center gap-2 self-start rounded-2xl rounded-tl-md bg-papier px-3.5 py-2.5 shadow-sm ring-1 ring-slate-200"
               >
                 <PointsEcriture />
                 {conversation.type !== 'DIRECT' && (
@@ -798,12 +809,12 @@ export default function Discussion({ conversation, onLu, onRetour }) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.6, y: 10 }}
               transition={{ type: 'spring', stiffness: 400, damping: 24 }}
-              className="absolute bottom-4 right-5 z-20 flex size-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg shadow-slate-900/10 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lagon-600 md:right-8"
+              className={`absolute bottom-4 right-5 z-20 flex size-11 items-center justify-center rounded-full border border-slate-200 bg-papier text-slate-700 shadow-lg shadow-black/10 transition-colors hover:bg-slate-50 md:right-8 ${FOCUS}`}
               aria-label={nouveaux > 0 ? `Descendre : ${nouveaux} nouveau${nouveaux > 1 ? 'x' : ''} message${nouveaux > 1 ? 's' : ''}` : 'Descendre en bas'}
             >
-              <ChevronDown className="size-5" />
+              <ChevronDown className="size-5" aria-hidden="true" />
               {nouveaux > 0 && (
-                <span className="absolute -right-1 -top-1 flex min-w-[20px] items-center justify-center rounded-full bg-lagon-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">
+                <span className="absolute -right-1 -top-1 flex min-w-[20px] items-center justify-center rounded-full bg-action-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">
                   {nouveaux > 99 ? '99+' : nouveaux}
                 </span>
               )}
@@ -842,26 +853,35 @@ export default function Discussion({ conversation, onLu, onRetour }) {
       {peutEcrire ? (
         <footer className="shrink-0 px-4 pb-4 pt-2 md:px-6">
           <div className="mx-auto w-full max-w-3xl">
-            {erreur && <p className="mb-2 px-2 text-sm text-red-600" role="alert">{erreur}</p>}
+            {erreur && (
+              <p className="mb-2 px-2 text-sm text-red-600 dark:text-red-400" role="alert">{erreur}</p>
+            )}
 
             <div
               onDragOver={(e) => { if (!edition) { e.preventDefault(); setSurvol(true) } }}
               onDragLeave={() => setSurvol(false)}
               onDrop={surDepot}
-              className={`rounded-3xl border bg-white/90 shadow-lg shadow-lagon-950/5 backdrop-blur-xl transition focus-within:border-lagon-400 focus-within:ring-4 focus-within:ring-lagon-500/15 ${
-                survol ? 'border-lagon-400 ring-4 ring-lagon-500/15' : 'border-slate-200'
+              className={`rounded-3xl border bg-papier/90 shadow-lg shadow-black/5 backdrop-blur-xl transition focus-within:border-action-500 focus-within:ring-4 focus-within:ring-action-500/15 ${
+                survol ? 'border-action-500 ring-4 ring-action-500/15' : 'border-slate-200'
               }`}
             >
               {(reponseA || edition) && (
                 <div className="mx-3 mt-3 flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">
-                  {edition ? <Pencil className="size-4 shrink-0 text-slate-500" /> : <Reply className="size-4 shrink-0 text-slate-500" />}
+                  {edition
+                    ? <Pencil className="size-4 shrink-0 text-slate-500" aria-hidden="true" />
+                    : <Reply className="size-4 shrink-0 text-slate-500" aria-hidden="true" />}
                   <span className="min-w-0 flex-1 truncate">
                     {edition
                       ? 'Modification du message'
                       : `Réponse à ${reponseA.expediteur?.prenom ?? ''} : ${(reponseA.contenu ?? 'pièce jointe').slice(0, 60)}`}
                   </span>
-                  <button type="button" onClick={annulerContexte} aria-label="Annuler" className="rounded-md p-0.5 text-slate-500 hover:bg-slate-200">
-                    <X className="size-4" />
+                  <button
+                    type="button"
+                    onClick={annulerContexte}
+                    aria-label="Annuler"
+                    className="rounded-md p-0.5 text-slate-500 hover:bg-slate-200"
+                  >
+                    <X className="size-4" aria-hidden="true" />
                   </button>
                 </div>
               )}
@@ -869,7 +889,9 @@ export default function Discussion({ conversation, onLu, onRetour }) {
               {!edition && avecAccuse(categorie) && (
                 <div
                   className={`mx-3 mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-3 py-2 text-xs ${
-                    categorie === 'URGENT' ? 'bg-red-50 text-red-900' : 'bg-amber-50 text-amber-900'
+                    categorie === 'URGENT'
+                      ? 'bg-red-50 text-red-900 dark:bg-red-500/15 dark:text-red-200'
+                      : 'bg-amber-50 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200'
                   }`}
                 >
                   <span className="min-w-0 flex-1">Les destinataires devront accuser réception de ce message.</span>
@@ -880,14 +902,14 @@ export default function Discussion({ conversation, onLu, onRetour }) {
                       value={echeance}
                       min={minEcheanceLocale()}
                       onChange={(e) => setEcheance(e.target.value)}
-                      className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:border-lagon-400 focus:outline-none focus:ring-2 focus:ring-lagon-500/20"
+                      className="rounded-md border border-slate-300 bg-papier px-2 py-1 text-xs text-slate-900 focus:border-action-500 focus:outline-none focus:ring-2 focus:ring-action-500/20"
                     />
                   </label>
                   {echeance && (
                     <button
                       type="button"
                       onClick={() => setEcheance('')}
-                      className="font-semibold underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-lagon-600"
+                      className={`font-semibold underline-offset-2 hover:underline ${FOCUS}`}
                     >
                       Retirer
                     </button>
@@ -905,10 +927,10 @@ export default function Discussion({ conversation, onLu, onRetour }) {
                         className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700 transition hover:bg-slate-100"
                         aria-label={`Retirer ${f.name}`}
                       >
-                        <Paperclip className="size-3.5" />
+                        <Paperclip className="size-3.5" aria-hidden="true" />
                         <span className="max-w-[180px] truncate">{f.name}</span>
                         <span className="text-slate-500">({tailleLisible(f.size)})</span>
-                        <X className="size-3.5" />
+                        <X className="size-3.5" aria-hidden="true" />
                       </button>
                     </li>
                   ))}
@@ -931,7 +953,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="sentences"
-                className="defilement-fin block max-h-[200px] min-h-[52px] w-full resize-none overflow-y-auto bg-transparent px-5 pb-1 pt-4 text-[15px] leading-6 text-slate-900 caret-lagon-600 placeholder-slate-500 focus:outline-none"
+                className="defilement-fin block max-h-[200px] min-h-[52px] w-full resize-none overflow-y-auto bg-transparent px-5 pb-1 pt-4 text-[15px] leading-6 text-slate-900 caret-action-600 placeholder-slate-500 focus:outline-none"
               />
 
               <div className="flex items-center gap-1 px-3 pb-3 pt-1">
@@ -940,7 +962,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
                     className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
                     title="Joindre un fichier"
                   >
-                    <Paperclip className="size-[18px]" />
+                    <Paperclip className="size-[18px]" aria-hidden="true" />
                     <span className="sr-only">Joindre un fichier</span>
                     <input type="file" multiple accept={TYPES_ACCEPTES} onChange={surChoixFichiers} hidden />
                   </label>
@@ -957,7 +979,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
                     pickerSaisieOuvert ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
-                  <Smile className="size-[18px]" />
+                  <Smile className="size-[18px]" aria-hidden="true" />
                 </button>
 
                 {!edition && <SelecteurCategorie categorie={categorie} onChange={changerCategorie} />}
@@ -965,7 +987,7 @@ export default function Discussion({ conversation, onLu, onRetour }) {
                 <span className="flex-1" />
 
                 {texte.length > MAX_CARACTERES * 0.9 && (
-                  <span className="text-xs font-medium text-amber-700" aria-live="polite">
+                  <span className="text-xs font-medium text-amber-700 dark:text-amber-300" aria-live="polite">
                     {texte.length} / {MAX_CARACTERES}
                   </span>
                 )}
@@ -979,12 +1001,12 @@ export default function Discussion({ conversation, onLu, onRetour }) {
                   transition={{ type: 'spring', stiffness: 500, damping: 18 }}
                   title={edition ? 'Enregistrer' : 'Envoyer'}
                   aria-label={edition ? 'Enregistrer' : 'Envoyer'}
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full bg-lagon-600 text-white shadow-sm transition-colors hover:bg-lagon-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lagon-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
+                  className={`flex size-10 shrink-0 items-center justify-center rounded-full bg-action-600 text-white shadow-sm transition-colors hover:bg-action-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none ${FOCUS}`}
                 >
                   {envoi ? (
                     <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" role="status" aria-label="Envoi en cours" />
                   ) : (
-                    <SendHorizontal className="size-[18px]" />
+                    <SendHorizontal className="size-[18px]" aria-hidden="true" />
                   )}
                 </motion.button>
               </div>
@@ -1008,8 +1030,8 @@ export default function Discussion({ conversation, onLu, onRetour }) {
           )}
         </footer>
       ) : (
-        <footer className="shrink-0 border-t border-slate-200 bg-white p-4 text-center text-sm text-slate-600">
-          {erreur && <p className="mb-2 text-red-600" role="alert">{erreur}</p>}
+        <footer className="shrink-0 border-t border-slate-200 bg-papier p-4 text-center text-sm text-slate-600">
+          {erreur && <p className="mb-2 text-red-600 dark:text-red-400" role="alert">{erreur}</p>}
           Diffusion : seul le créateur peut écrire dans cette conversation.
         </footer>
       )}

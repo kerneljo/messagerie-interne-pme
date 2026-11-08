@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 import api from '../api'
+import ThemeToggle from '../components/ThemeToggle'
 import {
   AlertCircleIcon, ArrowLeftIcon, ArrowRightIcon, CheckIcon,
   ChevronDownIcon, CircleIcon, ClockIcon, EyeIcon, EyeOffIcon,
@@ -46,22 +47,38 @@ function forceMotDePasse(mdp) {
 
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
-/* ---------- Styles partagés avec le Login ---------- */
-const AUTOFILL = '[&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_#F4F9F7] [&:autofill]:shadow-[inset_0_0_0_1000px_#F4F9F7]'
-const CLASSE_CHAMP = `h-15 w-full rounded-full border-2 text-base text-[#0C2A22] outline-none transition-all duration-200 placeholder:text-[#4F7468] ${AUTOFILL}`
+/* ---------- Styles partagés avec le Login ----------
+   Les couleurs passent par les tokens du CSS (slate, blue, action, creme,
+   papier) : elles changent automatiquement selon [data-theme].
+   L'autofill est géré par le CSS global (clair et sombre). */
+const CLASSE_CHAMP =
+  'h-15 w-full rounded-full border-2 text-base text-slate-900 outline-none transition-all duration-200 placeholder:text-slate-400'
 
 function bordureChamp(erreur, valide) {
-  if (erreur) return 'border-red-300 bg-red-50/40 focus:border-red-400 focus:bg-white focus:ring-4 focus:ring-red-500/10'
-  if (valide) return 'border-[#0C7A5A]/50 bg-[#F4F9F7] focus:border-[#0C7A5A] focus:bg-white focus:ring-4 focus:ring-[#0C7A5A]/10 focus:shadow-md'
-  return 'border-[#C3DDD2] bg-[#F4F9F7] hover:border-[#8FC2AE] focus:border-[#0C7A5A] focus:bg-white focus:ring-4 focus:ring-[#0C7A5A]/10 focus:shadow-md'
+  if (erreur) {
+    return 'border-red-300 bg-red-50/40 focus:border-red-400 focus:bg-papier focus:ring-4 focus:ring-red-500/10 dark:border-red-400/50 dark:bg-red-400/10'
+  }
+  if (valide) {
+    return 'border-action-600/50 bg-slate-50 focus:border-action-600 focus:bg-papier focus:ring-4 focus:ring-action-600/15 focus:shadow-md'
+  }
+  return 'border-slate-200 bg-slate-50 hover:border-slate-300 focus:border-action-600 focus:bg-papier focus:ring-4 focus:ring-action-600/15 focus:shadow-md dark:border-slate-300 dark:hover:border-slate-400'
 }
+
+/* Icône dans un champ : devient bleue quand le champ a le focus */
+const CLASSE_ICONE_CHAMP =
+  'pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-slate-400 transition-colors group-focus-within/champ:text-blue-600'
+
+/* Fond du panneau (desktop) et de l'en-tête (mobile) : identique au Login.
+   Clair  : bleu pâle. Sombre : gris-bleu discret, sans bleu saturé. */
+const DEGRADE_HERO =
+  'bg-gradient-to-b from-blue-100 via-blue-50 to-creme dark:from-papier dark:via-creme dark:to-creme'
 
 /* Logo : public/assets/fulmar-logo.png */
 function Logo({ taille = 'grand' }) {
   const grand = taille === 'grand'
   return (
     <span
-      className={`flex items-center justify-center rounded-full bg-white shadow-xl shadow-[#0C7A5A]/10 ring-1 ring-[#0C7A5A]/10 ${
+      className={`flex items-center justify-center rounded-full bg-white shadow-xl shadow-action-600/10 ring-1 ring-action-600/15 ${
         grand ? 'size-[96px] p-4' : 'size-12 p-2'
       }`}
     >
@@ -202,35 +219,36 @@ export default function Register() {
   function modifierEmail() { setSens(-1); setEtape('formulaire'); setErreur(''); setInfo(''); setCodeOtp('') }
 
   return (
-    <div className="relative flex min-h-dvh overflow-hidden bg-[#F8FBF9] font-sans text-[#0C2A22]">
-      
+    <div className="relative flex min-h-dvh overflow-hidden bg-creme font-sans text-slate-900">
+
       {/* ===== Panneau gauche (desktop) ===== */}
-      <aside className="relative z-10 hidden w-[45%] shrink-0 flex-col overflow-hidden rounded-r-[300px] bg-gradient-to-b from-[#D3EBE1] via-[#E0F0E9] to-[#EDF6F2] px-14 py-12 text-[#0E4F3C] lg:flex">
-        
-        {/* Effet Mesh Gradient */}
-        <div className="absolute -left-20 -top-20 size-[400px] rounded-full bg-white/40 blur-3xl pointer-events-none mix-blend-overlay" />
-        <div className="absolute -bottom-20 -right-20 size-[400px] rounded-full bg-[#0C7A5A]/20 blur-3xl pointer-events-none mix-blend-multiply" />
-        <div className="absolute top-1/3 -right-10 size-64 rounded-full bg-[#8FC2AE]/30 blur-3xl pointer-events-none" />
-        <div className="absolute -left-32 top-1/4 size-[500px] rounded-full border border-white/20 pointer-events-none" />
-        <div className="absolute -left-24 top-1/4 size-[400px] rounded-full border border-white/20 pointer-events-none" />
-        
+      <aside
+        className={`relative z-10 hidden w-[45%] shrink-0 flex-col overflow-hidden rounded-r-[300px] px-14 py-12 text-slate-800 lg:flex ${DEGRADE_HERO}`}
+      >
+        {/* Effet Mesh Gradient (en sombre : une seule lueur discrète) */}
+        <div className="pointer-events-none absolute -left-20 -top-20 size-[400px] rounded-full bg-white/40 blur-3xl mix-blend-overlay dark:bg-action-600/10 dark:mix-blend-normal" />
+        <div className="pointer-events-none absolute -bottom-20 -right-20 size-[400px] rounded-full bg-action-600/20 blur-3xl mix-blend-multiply dark:hidden" />
+        <div className="pointer-events-none absolute -right-10 top-1/3 size-64 rounded-full bg-blue-300/30 blur-3xl dark:hidden" />
+        <div className="pointer-events-none absolute -left-32 top-1/4 size-[500px] rounded-full border border-white/20 dark:border-white/5" />
+        <div className="pointer-events-none absolute -left-24 top-1/4 size-[400px] rounded-full border border-white/20 dark:border-white/5" />
+
         {/* LOGO EN HAUT À GAUCHE */}
         <div className="relative z-10 flex items-center gap-3">
           <Logo taille="petit" />
-          <span className="font-display text-xl font-bold tracking-tight text-[#0E4F3C]">
+          <span className="font-display text-xl font-bold tracking-tight text-slate-900">
             Fulmar
           </span>
         </div>
 
         {/* PRÉSENTATION CENTRALE */}
         <div className="relative z-10 flex flex-1 flex-col pt-16">
-          
+
           <div>
-            <h2 className="font-display text-4xl font-bold leading-[1.1] tracking-tight text-[#0E4F3C] xl:text-5xl">
+            <h2 className="font-display text-4xl font-bold leading-[1.1] tracking-tight text-slate-900 xl:text-5xl dark:text-slate-800">
               Rejoignez <br />
-              <span className="text-[#0C7A5A]">votre équipe.</span>
+              <span className="text-blue-600">votre équipe.</span>
             </h2>
-            <p className="mt-5 text-base leading-relaxed text-[#2F5C4E]">
+            <p className="mt-5 text-base leading-relaxed text-slate-600">
               Créez votre compte en quelques minutes. Une fois validé par un administrateur, vous accédez à votre messagerie sécurisée.
             </p>
           </div>
@@ -238,12 +256,12 @@ export default function Register() {
           <div className="mt-10 space-y-4">
             {AVANTAGES.map(({ icone: Icone, titre, desc }) => (
               <div key={titre} className="flex items-start gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-[#0C7A5A]/10">
-                  <Icone className="size-5 text-[#0C7A5A]" />
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-papier shadow-sm ring-1 ring-action-600/15">
+                  <Icone className="size-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-[#0E4F3C]">{titre}</p>
-                  <p className="text-xs text-[#4F7468]">{desc}</p>
+                  <p className="text-sm font-semibold text-slate-900">{titre}</p>
+                  <p className="text-xs text-slate-500">{desc}</p>
                 </div>
               </div>
             ))}
@@ -251,41 +269,48 @@ export default function Register() {
         </div>
 
         {/* COPYRIGHT EN BAS */}
-        <p className="relative z-10 text-xs font-medium text-[#4F7468]">
+        <p className="relative z-10 text-xs font-medium text-slate-500">
           © {new Date().getFullYear()} Fulmar · Tous droits réservés
         </p>
       </aside>
 
       {/* ===== Colonne formulaire ===== */}
       <main className="relative flex flex-1 flex-col lg:overflow-y-auto">
-        
+
+        {/* Bouton mode clair / sombre (même thème que la page de connexion) */}
+        <ThemeToggle className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6" />
+
         {/* En-tête mobile */}
-        <header className="relative flex flex-col items-center gap-3 overflow-hidden rounded-bl-[140px] bg-gradient-to-b from-[#D3EBE1] via-[#E0F0E9] to-[#EDF6F2] px-6 pb-12 pt-14 text-center text-[#0E4F3C] lg:hidden">
-          <div className="absolute -top-10 -right-10 size-40 rounded-full bg-white/40 blur-2xl pointer-events-none" />
+        <header
+          className={`relative flex flex-col items-center gap-3 overflow-hidden rounded-bl-[140px] px-6 pb-12 pt-14 text-center text-slate-900 lg:hidden ${DEGRADE_HERO}`}
+        >
+          <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/40 blur-2xl dark:hidden" />
           <Logo taille="petit" />
           <p className="font-display text-xl font-bold">Fulmar</p>
           <h2 className="mt-1 font-display text-3xl font-bold tracking-tight">Rejoignez votre équipe</h2>
         </header>
 
         <div className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-          
-          {/* CARTE FORMULAIRE */}
-          <div className="w-full max-w-[720px] rounded-[40px] border border-white/80 bg-white/60 p-10 shadow-[0_8px_32px_rgba(12,122,90,0.04)] backdrop-blur-xl motion-safe:animate-fade-in-up sm:p-14">
-            
+
+          {/* CARTE FORMULAIRE
+              Clair  : verre dépoli translucide.
+              Sombre : opaque, bordure nette et ombre noire pour ressortir. */}
+          <div className="w-full max-w-[720px] rounded-[40px] border border-white/80 bg-papier/70 p-10 shadow-[0_8px_32px_rgba(59,91,219,0.06)] backdrop-blur-xl motion-safe:animate-fade-in-up dark:border-white/15 dark:bg-papier dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6)] sm:p-14">
+
             <Progression etape={etape} />
 
             {/* ============ ÉTAPE 1 : FORMULAIRE ============ */}
             {etape === 'formulaire' && (
               <div className="motion-safe:animate-fade-in-up">
-                <h1 className="font-display text-4xl font-extrabold tracking-tight text-[#0E4F3C] lg:text-[44px] lg:leading-tight">
+                <h1 className="font-display text-4xl font-extrabold tracking-tight text-slate-900 lg:text-[44px] lg:leading-tight">
                   Créer un compte
                 </h1>
-                <p className="mt-3 text-[16px] text-[#3C5B50]">
+                <p className="mt-3 text-[16px] text-slate-600">
                   Renseignez vos informations professionnelles. Tous les champs sont obligatoires.
                 </p>
 
                 <form onSubmit={demanderCode} noValidate className="mt-8">
-                  {/* On utilise un grid avec un gap un peu plus grand pour compenser les erreurs absolues */}
+                  {/* Grid avec un gap un peu plus grand pour compenser les erreurs absolues */}
                   <div className="grid grid-cols-1 items-start gap-x-5 gap-y-2 sm:grid-cols-2">
                     <Champ
                       id="prenom" label="Prénom" icone={UserIcon} value={prenom}
@@ -313,28 +338,28 @@ export default function Register() {
                     </div>
 
                     <div className="sm:col-span-2 pb-5"> {/* pb-5 ici pour le Poste */}
-                      <label htmlFor="code_poste" className="mb-2 block pl-5 text-sm font-semibold text-[#0C2A22]">Poste</label>
-                      <div className="relative">
-                        <BriefcaseIcon className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-[#8FC2AE]" />
+                      <label htmlFor="code_poste" className="mb-2 block pl-5 text-sm font-semibold text-slate-900">Poste</label>
+                      <div className="group/champ relative">
+                        <BriefcaseIcon className={CLASSE_ICONE_CHAMP} />
                         <select
                           id="code_poste" value={codePoste}
                           onChange={modifier('code_poste', setCodePoste)} onBlur={() => marquer('code_poste')}
                           required disabled={chargementPostes || envoi}
                           aria-invalid={!!erreurDe('code_poste')}
                           aria-describedby={erreurDe('code_poste') ? 'code_poste-erreur' : undefined}
-                          className={`${CLASSE_CHAMP} appearance-none pl-[52px] pr-12 ${bordureChamp(erreurDe('code_poste'))} ${codePoste ? 'text-[#0C2A22]' : 'text-[#4F7468]'}`}
+                          className={`${CLASSE_CHAMP} appearance-none pl-[52px] pr-12 ${bordureChamp(erreurDe('code_poste'))} ${codePoste ? 'text-slate-900' : 'text-slate-400'}`}
                         >
                           <option value="">{chargementPostes ? 'Chargement…' : 'Choisir un poste'}</option>
                           {postes.map((p) => (
                             <option key={p.code_poste} value={p.code_poste} className="text-slate-900">{p.libelle}</option>
                           ))}
                         </select>
-                        <ChevronDownIcon className="pointer-events-none absolute right-5 top-1/2 size-4 -translate-y-1/2 text-[#4F7468]" />
+                        <ChevronDownIcon className="pointer-events-none absolute right-5 top-1/2 size-4 -translate-y-1/2 text-slate-500" />
                       </div>
-                      
+
                       {/* Erreur du poste en absolu */}
                       {erreurDe('code_poste') && (
-                        <p id="code_poste-erreur" className="absolute mt-1 pl-5 text-xs font-medium text-red-600 motion-safe:animate-fade-in-up">
+                        <p id="code_poste-erreur" className="absolute mt-1 pl-5 text-xs font-medium text-red-600 motion-safe:animate-fade-in-up dark:text-red-300">
                           {erreurDe('code_poste')}
                         </p>
                       )}
@@ -353,20 +378,20 @@ export default function Register() {
                             type="button" onClick={() => setVoirMdp((v) => !v)}
                             aria-label={voirMdp ? 'Masquer les mots de passe' : 'Afficher les mots de passe'}
                             aria-pressed={voirMdp}
-                            className="flex size-10 items-center justify-center rounded-full text-[#4F7468] transition hover:bg-[#0C7A5A]/10 hover:text-[#0C7A5A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0C7A5A]/40"
+                            className="flex size-10 items-center justify-center rounded-full text-slate-500 transition hover:bg-action-600/10 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action-600/40"
                           >
                             {voirMdp ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
                           </button>
                         }
                       />
-                      
+
                       {/* Caps Lock en absolu */}
                       {capsLock && (
-                        <p className="absolute mt-1 pl-5 flex items-center gap-1.5 text-xs font-medium text-amber-700 motion-safe:animate-fade-in-up">
+                        <p className="absolute mt-1 flex items-center gap-1.5 pl-5 text-xs font-medium text-amber-700 motion-safe:animate-fade-in-up dark:text-amber-300">
                           <AlertCircleIcon className="size-3.5 shrink-0" /> Verrouillage majuscules activé
                         </p>
                       )}
-                      
+
                       <IndiceMotDePasse mdp={password} />
                     </div>
 
@@ -383,9 +408,9 @@ export default function Register() {
                   </div>
 
                   <div className="flex flex-col-reverse gap-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-center text-sm text-[#3C5B50] sm:text-left">
+                    <p className="text-center text-sm text-slate-600 sm:text-left">
                       Déjà un compte ?{' '}
-                      <Link to="/login" className="font-semibold text-[#0C7A5A] underline-offset-4 hover:underline">
+                      <Link to="/login" className="font-semibold text-blue-600 underline-offset-4 hover:underline">
                         Se connecter
                       </Link>
                     </p>
@@ -400,22 +425,22 @@ export default function Register() {
             {/* ============ ÉTAPE 2 : CODE DE VÉRIFICATION ============ */}
             {etape === 'otp' && (
               <div className="motion-safe:animate-fade-in-up">
-                <h1 className="font-display text-4xl font-extrabold tracking-tight text-[#0E4F3C] lg:text-[44px] lg:leading-tight">
+                <h1 className="font-display text-4xl font-extrabold tracking-tight text-slate-900 lg:text-[44px] lg:leading-tight">
                   Vérifiez votre e-mail
                 </h1>
-                <p className="mt-3 text-[16px] text-[#3C5B50]">
-                  Nous avons envoyé un code à 6 chiffres à <strong className="font-semibold text-[#0C2A22]">{email.trim()}</strong>.
+                <p className="mt-3 text-[16px] text-slate-600">
+                  Nous avons envoyé un code à 6 chiffres à <strong className="font-semibold text-slate-900">{email.trim()}</strong>.
                 </p>
 
                 <form onSubmit={verifierCode} noValidate className="mt-8 space-y-6">
                   <div>
-                    <p id="libelle-code" className="mb-3 text-center text-sm font-semibold text-[#0C2A22]">
+                    <p id="libelle-code" className="mb-3 text-center text-sm font-semibold text-slate-900">
                       Code de vérification
                     </p>
                     <div className={secousse ? 'motion-safe:animate-shake' : ''} key={cleSaisie}>
                       <SaisieCode valeur={codeOtp} onChange={changerCode} disabled={envoi} erreur={!!erreur} />
                     </div>
-                    <p className="mt-3 text-center text-xs text-[#3C5B50]">
+                    <p className="mt-3 text-center text-xs text-slate-600">
                       La vérification démarre dès que les 6 chiffres sont saisis.
                     </p>
                   </div>
@@ -425,14 +450,14 @@ export default function Register() {
                 </form>
 
                 <div className="mt-6 flex flex-col items-center gap-3 text-sm">
-                  <p className="text-[#3C5B50]">
+                  <p className="text-slate-600">
                     Vous n’avez rien reçu ?{' '}
                     {attente > 0 ? (
-                      <span className="tabular-nums text-[#4F7468]">Renvoyer dans {mmss(attente)}</span>
+                      <span className="tabular-nums text-slate-500">Renvoyer dans {mmss(attente)}</span>
                     ) : (
                       <button
                         type="button" onClick={renvoyerCode} disabled={envoi}
-                        className="rounded font-semibold text-[#0C7A5A] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0C7A5A]/40"
+                        className="rounded font-semibold text-blue-600 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action-600/40"
                       >
                         Renvoyer le code
                       </button>
@@ -440,7 +465,7 @@ export default function Register() {
                   </p>
                   <button
                     type="button" onClick={modifierEmail}
-                    className="flex items-center gap-1.5 rounded text-[#3C5B50] transition hover:text-[#0C2A22] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0C7A5A]/40"
+                    className="flex items-center gap-1.5 rounded text-slate-600 transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action-600/40"
                   >
                     <ArrowLeftIcon className="size-4" /> Modifier mes informations
                   </button>
@@ -454,10 +479,10 @@ export default function Register() {
                 <div className="mx-auto flex size-16 items-center justify-center">
                   <CocheAnimee />
                 </div>
-                <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-[#0E4F3C] lg:text-[44px] lg:leading-tight">
+                <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-slate-900 lg:text-[44px] lg:leading-tight">
                   Compte créé
                 </h1>
-                <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[#3C5B50] lg:text-base">
+                <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-600 lg:text-base">
                   Votre adresse e-mail est confirmée. Il reste une étape : un administrateur doit activer votre compte.
                 </p>
 
@@ -469,7 +494,7 @@ export default function Register() {
 
                 <Link
                   to="/login"
-                  className="mt-8 inline-flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#0C7A5A] px-8 text-base font-semibold text-white shadow-lg shadow-[#0C7A5A]/30 transition hover:bg-[#095F46] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0C7A5A]/30 sm:w-auto sm:min-w-[260px]"
+                  className="mt-8 inline-flex h-14 w-full items-center justify-center gap-2 rounded-full bg-action-600 px-8 text-base font-semibold text-white shadow-lg shadow-action-600/30 transition hover:bg-action-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-action-500/40 sm:w-auto sm:min-w-[260px]"
                 >
                   Retour à la connexion <ArrowRightIcon className="size-4" />
                 </Link>
@@ -490,11 +515,9 @@ function Champ({ id, label, icone: Icone, droite, erreur, valide, ...props }) {
   return (
     // pb-5 réserve l'espace sous le champ pour que l'erreur (position: absolute) ne pousse pas le champ suivant
     <div className="relative pb-5">
-      <label htmlFor={id} className="mb-2 block pl-5 text-sm font-semibold text-[#0C2A22]">{label}</label>
-      <div className="relative">
-        {Icone && (
-          <Icone className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-[#8FC2AE] transition-colors peer-focus:text-[#0C7A5A]" />
-        )}
+      <label htmlFor={id} className="mb-2 block pl-5 text-sm font-semibold text-slate-900">{label}</label>
+      <div className="group/champ relative">
+        {Icone && <Icone className={CLASSE_ICONE_CHAMP} />}
         <input
           id={id} required aria-invalid={!!erreur} aria-describedby={erreur ? `${id}-erreur` : undefined}
           className={`${CLASSE_CHAMP} ${Icone ? 'pl-[52px]' : 'pl-5'} ${droite || valide ? 'pr-14' : 'pr-5'} ${bordureChamp(erreur, valide)}`}
@@ -502,13 +525,13 @@ function Champ({ id, label, icone: Icone, droite, erreur, valide, ...props }) {
         />
         {droite && <div className="absolute inset-y-0 right-0 flex items-center pr-2">{droite}</div>}
         {valide && !droite && !erreur && (
-          <CheckIcon className="pointer-events-none absolute right-5 top-1/2 size-5 -translate-y-1/2 text-[#0C7A5A]" />
+          <CheckIcon className="pointer-events-none absolute right-5 top-1/2 size-5 -translate-y-1/2 text-blue-600" />
         )}
       </div>
-      
+
       {/* Erreur en absolu : ne pousse jamais le champ suivant */}
       {erreur && (
-        <p id={`${id}-erreur`} className="absolute mt-1 pl-5 text-xs font-medium text-red-600 motion-safe:animate-fade-in-up">
+        <p id={`${id}-erreur`} className="absolute mt-1 pl-5 text-xs font-medium text-red-600 motion-safe:animate-fade-in-up dark:text-red-300">
           {erreur}
         </p>
       )}
@@ -523,14 +546,14 @@ function Progression({ etape }) {
   const numero = etape === 'formulaire' ? 1 : 2
   return (
     <div className="mb-8">
-      <p className="mb-2 text-sm font-medium text-[#3C5B50]">
+      <p className="mb-2 text-sm font-medium text-slate-600">
         Étape {numero} sur 2 · {TITRES_ETAPES[etape]}
       </p>
       <div className="flex gap-1.5">
         {[1, 2].map((i) => (
-          <span key={i} className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[#DCE9E4]">
+          <span key={i} className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
             <span
-              className="absolute inset-0 origin-left rounded-full bg-[#0C7A5A] transition-transform duration-500"
+              className="absolute inset-0 origin-left rounded-full bg-action-600 transition-transform duration-500"
               style={{ transform: `scaleX(${i <= numero ? 1 : 0})` }}
             />
           </span>
@@ -542,8 +565,8 @@ function Progression({ etape }) {
 
 function IndiceMotDePasse({ mdp }) {
   const { score, libelle } = forceMotDePasse(mdp)
-  const couleurs = ['', 'bg-red-500', 'bg-amber-500', 'bg-[#3FA586]', 'bg-[#0C7A5A]']
-  
+  const couleurs = ['', 'bg-red-500', 'bg-amber-500', 'bg-blue-400', 'bg-action-600']
+
   if (!mdp) return null
 
   return (
@@ -551,13 +574,13 @@ function IndiceMotDePasse({ mdp }) {
       <div className="flex items-center gap-3">
         <div className="flex flex-1 gap-1">
           {[1, 2, 3, 4].map((i) => (
-            <span 
-              key={i} 
-              className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= score ? couleurs[score] : 'bg-[#DCE9E4]'}`} 
+            <span
+              key={i}
+              className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= score ? couleurs[score] : 'bg-slate-200'}`}
             />
           ))}
         </div>
-        <span className="text-xs font-medium text-[#3C5B50]">{libelle}</span>
+        <span className="text-xs font-medium text-slate-600">{libelle}</span>
       </div>
     </div>
   )
@@ -599,10 +622,10 @@ function SaisieCode({ valeur, onChange, disabled, erreur }) {
           autoFocus={i === 0} disabled={disabled} value={valeur[i] ?? ''}
           onChange={(e) => surSaisie(i, e)} onKeyDown={(e) => surTouche(i, e)} onPaste={surColler}
           onFocus={(e) => e.target.select()}
-          className={`size-12 rounded-2xl border-2 text-center font-mono text-xl font-semibold text-[#0C2A22] outline-none transition focus:bg-white focus:ring-4 disabled:opacity-60 sm:size-14 ${
+          className={`size-12 rounded-2xl border-2 text-center font-mono text-xl font-semibold text-slate-900 outline-none transition focus:bg-papier focus:ring-4 disabled:opacity-60 sm:size-14 ${
             erreur
-              ? 'border-red-300 bg-red-50/40 focus:border-red-400 focus:ring-red-500/10'
-              : 'border-[#C3DDD2] bg-[#F4F9F7] focus:border-[#0C7A5A] focus:ring-[#0C7A5A]/15'
+              ? 'border-red-300 bg-red-50/40 focus:border-red-400 focus:ring-red-500/10 dark:border-red-400/50 dark:bg-red-400/10'
+              : 'border-slate-200 bg-slate-50 focus:border-action-600 focus:ring-action-600/15 dark:border-slate-300'
           }`}
         />
       ))}
@@ -617,7 +640,9 @@ function Alerte({ type = 'erreur', children }) {
     <div
       role={erreur ? 'alert' : 'status'}
       className={`flex items-start gap-2.5 rounded-2xl border p-3.5 text-sm ${
-        erreur ? 'border-red-200 bg-red-50 text-red-800' : 'border-[#BFE0D3] bg-[#EAF4F0] text-[#0E4F3C]'
+        erreur
+          ? 'border-red-200 bg-red-50 text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200'
+          : 'border-blue-200 bg-blue-50 text-blue-900'
       }`}
     >
       <Icone className="mt-0.5 size-4 shrink-0" />
@@ -626,15 +651,14 @@ function Alerte({ type = 'erreur', children }) {
   )
 }
 
+/* Bouton principal : plus d'effet de lumière au survol (juste un léger éclaircissement).
+   Texte blanc sur action-700 → action-600 pour le contraste en clair comme en sombre. */
 function BoutonPrincipal({ disabled, className = '', children, ...props }) {
   return (
     <button
       {...props} disabled={disabled}
-      className={`group relative flex h-14 items-center justify-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-[#0C7A5A] to-[#0F9B73] px-8 text-base font-semibold text-white shadow-lg shadow-[#0C7A5A]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#0C7A5A]/35 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#0C7A5A]/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 ${className}`}
+      className={`flex h-14 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-action-700 to-action-600 px-8 text-base font-semibold text-white shadow-lg shadow-action-600/25 transition-all duration-200 hover:brightness-110 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-action-500/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 ${className}`}
     >
-      <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
-        <div className="relative h-full w-8 bg-white/20" />
-      </div>
       {children}
     </button>
   )
@@ -642,9 +666,9 @@ function BoutonPrincipal({ disabled, className = '', children, ...props }) {
 
 function CocheAnimee() {
   return (
-    <svg viewBox="0 0 52 52" className="size-16" aria-hidden="true">
-      <circle cx="26" cy="26" r="24" fill="none" stroke="#0C7A5A" strokeWidth="3" className="animate-draw" strokeDasharray="150" strokeDashoffset="150" />
-      <path d="M15 27l8 8 14-16" fill="none" stroke="#0C7A5A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="50" strokeDashoffset="50" className="animate-draw-delayed" />
+    <svg viewBox="0 0 52 52" className="size-16 text-blue-600" aria-hidden="true">
+      <circle cx="26" cy="26" r="24" fill="none" stroke="currentColor" strokeWidth="3" className="animate-draw" strokeDasharray="150" strokeDashoffset="150" />
+      <path d="M15 27l8 8 14-16" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="50" strokeDashoffset="50" className="animate-draw-delayed" />
     </svg>
   )
 }
@@ -655,20 +679,20 @@ function EtapeSuite({ etat, titre, detail, dernier = false }) {
   return (
     <li className="relative flex gap-4 pb-6 last:pb-0">
       {!dernier && (
-        <span className={`absolute left-[15px] top-8 h-[calc(100%-2rem)] w-px ${fait ? 'bg-[#0C7A5A]' : 'bg-[#DCE9E4]'}`} />
+        <span className={`absolute left-[15px] top-8 h-[calc(100%-2rem)] w-px ${fait ? 'bg-action-600' : 'bg-slate-200'}`} />
       )}
       <span className={`relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full ${
         fait
-          ? 'bg-[#0C7A5A] text-white'
+          ? 'bg-action-600 text-white'
           : encours
-            ? 'bg-amber-100 text-amber-700 ring-4 ring-amber-50 motion-safe:animate-pulse'
-            : 'bg-[#EAF4F0] text-[#4F7468]'
+            ? 'bg-amber-100 text-amber-700 ring-4 ring-amber-50 motion-safe:animate-pulse dark:bg-amber-400/15 dark:text-amber-300 dark:ring-amber-400/10'
+            : 'bg-slate-100 text-slate-500'
       }`}>
         {fait ? <CheckIcon className="size-4" strokeWidth={3} /> : encours ? <ClockIcon className="size-4" /> : <CircleIcon className="size-3.5" />}
       </span>
       <div className="min-w-0 pt-0.5">
-        <p className={`text-sm font-semibold ${etat === 'attente' ? 'text-[#4F7468]' : 'text-[#0C2A22]'}`}>{titre}</p>
-        <p className="mt-0.5 break-words text-xs text-[#3C5B50]">{detail}</p>
+        <p className={`text-sm font-semibold ${etat === 'attente' ? 'text-slate-500' : 'text-slate-900'}`}>{titre}</p>
+        <p className="mt-0.5 break-words text-xs text-slate-600">{detail}</p>
       </div>
     </li>
   )

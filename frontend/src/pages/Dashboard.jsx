@@ -12,19 +12,37 @@ import usePolling from '../usePolling'
 import { heureCourte, messageErreur } from '../utils'
 import { Avatar } from '../components/ui'
 
+/* Teintes pastel : les variantes `dark:` couvrent emerald / amber / red,
+   non redéfinis dans [data-theme="dark"] de index.css.
+   bleu / violet / gris suivent déjà les variables du thème. */
 const PASTEL = {
   bleu: { fond: 'bg-blue-50', pastille: 'bg-blue-500', texte: 'text-blue-700', trait: 'text-blue-500' },
-  vert: { fond: 'bg-emerald-50', pastille: 'bg-emerald-500', texte: 'text-emerald-700', trait: 'text-emerald-500' },
-  orange: { fond: 'bg-amber-50', pastille: 'bg-amber-500', texte: 'text-amber-700', trait: 'text-amber-500' },
+  vert: {
+    fond: 'bg-emerald-50 dark:bg-emerald-500/15',
+    pastille: 'bg-emerald-500',
+    texte: 'text-emerald-700 dark:text-emerald-300',
+    trait: 'text-emerald-500',
+  },
+  orange: {
+    fond: 'bg-amber-50 dark:bg-amber-500/15',
+    pastille: 'bg-amber-500',
+    texte: 'text-amber-700 dark:text-amber-300',
+    trait: 'text-amber-500',
+  },
   violet: { fond: 'bg-violet-50', pastille: 'bg-violet-500', texte: 'text-violet-700', trait: 'text-violet-500' },
-  rouge: { fond: 'bg-red-50', pastille: 'bg-red-500', texte: 'text-red-700', trait: 'text-red-500' },
+  rouge: {
+    fond: 'bg-red-50 dark:bg-red-500/15',
+    pastille: 'bg-red-500',
+    texte: 'text-red-700 dark:text-red-300',
+    trait: 'text-red-500',
+  },
   gris: { fond: 'bg-slate-100', pastille: 'bg-slate-300', texte: 'text-slate-500', trait: 'text-slate-300' },
 }
 
-const OMBRE = 'shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-14px_rgba(15,23,42,0.12)]'
-const CARTE = `rounded-2xl border border-slate-200/60 bg-white ${OMBRE}`
+const OMBRE = 'shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_28px_-14px_rgba(15,23,42,0.12)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.3),0_10px_28px_-14px_rgba(0,0,0,0.5)]'
+const CARTE = `rounded-2xl border border-slate-200/60 bg-papier ${OMBRE}`
 const FOCUS =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E95420] focus-visible:ring-offset-2'
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E95420] focus-visible:ring-offset-2 focus-visible:ring-offset-papier'
 
 /* ============================================================
    Utilitaires
@@ -98,7 +116,11 @@ function Sparkline({ valeurs, className = '' }) {
 function Tendance({ delta }) {
   const Icone = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus
   const couleur =
-    delta > 0 ? 'bg-emerald-50 text-emerald-700' : delta < 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'
+    delta > 0
+      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+      : delta < 0
+        ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+        : 'bg-slate-100 text-slate-500'
   const texte = delta === 0 ? 'Stable' : `${delta > 0 ? '+' : '−'}${Math.abs(delta)}`
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${couleur}`}>
@@ -165,7 +187,7 @@ function EnTete({ titre, to, lien = 'Tout voir', badge, icone: Icone, teinte = '
       {to && (
         <Link
           to={to}
-          className={`group/lien flex shrink-0 items-center gap-1 rounded text-sm font-semibold text-[#C2410C] ${FOCUS}`}
+          className={`group/lien flex shrink-0 items-center gap-1 rounded text-sm font-semibold text-[#C2410C] dark:text-orange-400 ${FOCUS}`}
         >
           {lien}
           <ArrowRight
@@ -181,7 +203,7 @@ function EnTete({ titre, to, lien = 'Tout voir', badge, icone: Icone, teinte = '
 function EtatVide({ texte, titre }) {
   return (
     <div className="flex flex-1 items-center gap-3 px-5 py-6">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
         <CheckCircle2 className="size-4" aria-hidden="true" />
       </span>
       <p className="text-sm text-slate-600">
@@ -268,11 +290,12 @@ function Activite({ jours }) {
               <div key={j.jour} className="group relative outline-none" tabIndex={0}
                 aria-label={`${libelle} : ${j.envoyes} envoyé(s), ${j.recus} reçu(s)`}>
                 <div className="absolute inset-y-0 left-1/2 hidden w-px -translate-x-1/2 bg-slate-300 group-hover:block group-focus:block" aria-hidden="true" />
-                <span className="absolute left-1/2 hidden size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-blue-600 shadow group-hover:block group-focus:block"
+                <span className="absolute left-1/2 hidden size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-papier bg-blue-600 shadow group-hover:block group-focus:block"
                   style={{ top: `${(y(j.envoyes) / H) * 100}%` }} aria-hidden="true" />
-                <span className="absolute left-1/2 hidden size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-slate-400 shadow group-hover:block group-focus:block"
+                <span className="absolute left-1/2 hidden size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-papier bg-slate-400 shadow group-hover:block group-focus:block"
                   style={{ top: `${(y(j.recus) / H) * 100}%` }} aria-hidden="true" />
-                <div className="pointer-events-none absolute left-1/2 top-0 z-10 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg group-hover:block group-focus:block">
+                {/* bg-slate-800 + text-papier : s'inverse avec le thème (sombre sur clair, clair sur sombre) */}
+                <div className="pointer-events-none absolute left-1/2 top-0 z-10 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-papier shadow-lg group-hover:block group-focus:block">
                   {j.envoyes} envoyé{j.envoyes > 1 ? 's' : ''} · {j.recus} reçu{j.recus > 1 ? 's' : ''}
                 </div>
               </div>
@@ -351,7 +374,11 @@ function CarteActions({ actions }) {
             return (
               <li key={lire(a, 'id', 'reference_message', 'reference') ?? i}>
                 <Link to="/a-traiter" className="flex items-center gap-3 px-5 py-2 transition-colors hover:bg-slate-50">
-                  <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${enRetard ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                  <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${
+                    enRetard
+                      ? 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-300'
+                      : 'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300'
+                  }`}>
                     <ClipboardCheck className="size-4" aria-hidden="true" />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -364,7 +391,9 @@ function CarteActions({ actions }) {
                     )}
                   </span>
                   {enRetard && (
-                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">En retard</span>
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-500/20 dark:text-red-300">
+                      En retard
+                    </span>
                   )}
                 </Link>
               </li>
@@ -384,7 +413,7 @@ function Raccourci({ touches, texte }) {
         {touches.map((t) => (
           <kbd
             key={t}
-            className="rounded-md border border-slate-200 bg-white px-2 py-1 font-sans text-xs font-semibold text-slate-600 shadow-[0_1px_0_rgba(15,23,42,0.08)]"
+            className="rounded-md border border-slate-200 bg-papier px-2 py-1 font-sans text-xs font-semibold text-slate-600 shadow-[0_1px_0_rgba(15,23,42,0.08)] dark:shadow-[0_1px_0_rgba(0,0,0,0.4)]"
           >
             {t}
           </kbd>
@@ -444,12 +473,12 @@ function CartePiecesJointes({ piecesJointes }) {
 function StatAdmin({ titre, valeur, icone: Icone, teinte, alerte = false, className = '' }) {
   const t = PASTEL[teinte]
   return (
-    <div className={`flex items-center gap-3.5 bg-white px-4 py-3.5 ${className}`}>
+    <div className={`flex items-center gap-3.5 bg-papier px-4 py-3.5 ${className}`}>
       <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${t.fond} ${t.texte}`}>
         <Icone className="size-5" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <p className={`text-2xl font-extrabold leading-none tracking-tight tabular-nums ${alerte ? 'text-red-600' : 'text-slate-800'}`}>
+        <p className={`text-2xl font-extrabold leading-none tracking-tight tabular-nums ${alerte ? 'text-red-600 dark:text-red-400' : 'text-slate-800'}`}>
           {valeur}
         </p>
         <p className="mt-1 truncate text-xs font-medium text-slate-500">{titre}</p>
@@ -546,7 +575,9 @@ export default function Dashboard() {
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4 md:p-5">
       {erreur && (
-        <p className="shrink-0 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{erreur}</p>
+        <p className="shrink-0 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-500/15 dark:text-red-300" role="alert">
+          {erreur}
+        </p>
       )}
 
       {!donnees && !erreur && (

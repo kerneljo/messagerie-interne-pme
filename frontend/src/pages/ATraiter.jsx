@@ -32,9 +32,12 @@ const TRIS = [
   { id: 'recent', libelle: 'Plus récent' },
 ]
 
+/* Les couleurs Tailwind natives (red, amber, emerald) ne s'adaptent pas au
+   thème : on ajoute une variante dark: à chacune. indigo et slate passent par
+   les tokens du thème et s'adaptent déjà tout seuls. */
 const SECTIONS = [
-  { id: 'retard', libelle: 'En retard', ton: 'text-red-700' },
-  { id: 'aujourdhui', libelle: "Pour aujourd'hui", ton: 'text-amber-700' },
+  { id: 'retard', libelle: 'En retard', ton: 'text-red-700 dark:text-red-300' },
+  { id: 'aujourdhui', libelle: "Pour aujourd'hui", ton: 'text-amber-700 dark:text-amber-300' },
   { id: 'semaine', libelle: 'Cette semaine', ton: 'text-slate-700' },
   { id: 'plus_tard', libelle: 'Plus tard', ton: 'text-slate-700' },
   { id: 'sans', libelle: 'Sans échéance', ton: 'text-slate-600' },
@@ -42,6 +45,9 @@ const SECTIONS = [
 
 const DELAI_ANNULATION = 5000
 const INTERVALLE_ACTUALISATION = 15_000
+
+/* Contour des champs et boutons secondaires : un cran plus marqué en sombre */
+const CONTOUR = 'border-slate-200 dark:border-slate-300'
 
 /* ============================================================
    Utilitaires
@@ -379,10 +385,9 @@ export default function ATraiter() {
 
   /* ---------- Rendu ---------- */
   return (
-    // ✅ Suppression totale du padding-top
     <div className="w-full pb-24">
-      
-      {/* ✅ En-tête avec les compteurs : caché s'il n'y a rien à afficher */}
+
+      {/* En-tête avec les compteurs : caché s'il n'y a rien à afficher */}
       {(nbRetard > 0 || nbUrgent > 0 || nbAujourdhui > 0) && (
         <header className="flex flex-wrap items-end justify-between gap-3 px-4 pt-4 md:px-6">
           <div className="flex flex-wrap gap-2">
@@ -390,7 +395,7 @@ export default function ATraiter() {
               <button
                 type="button"
                 onClick={() => setFiltre('retard')}
-                className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-200 focus-visible:outline-2 focus-visible:outline-red-600"
+                className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-200 focus-visible:outline-2 focus-visible:outline-red-600 dark:bg-red-400/15 dark:text-red-300 dark:hover:bg-red-400/25"
               >
                 {pluriel(nbRetard, 'en retard', 'en retard')}
               </button>
@@ -399,7 +404,7 @@ export default function ATraiter() {
               <button
                 type="button"
                 onClick={() => setFiltre('urgent')}
-                className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-200 focus-visible:outline-2 focus-visible:outline-amber-600"
+                className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-200 focus-visible:outline-2 focus-visible:outline-amber-600 dark:bg-amber-400/15 dark:text-amber-300 dark:hover:bg-amber-400/25"
               >
                 {pluriel(nbUrgent, 'urgent')}
               </button>
@@ -413,8 +418,8 @@ export default function ATraiter() {
         </header>
       )}
 
-      {/* ✅ Barre d'outils sticky collée en haut (plus de marge) */}
-      <div className="sticky top-0 z-10 mb-5 flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:px-6">
+      {/* Barre d'outils sticky collée en haut */}
+      <div className="sticky top-0 z-10 mb-5 flex flex-wrap items-center gap-3 border-b border-slate-200 bg-papier/95 px-4 py-3 backdrop-blur md:px-6">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer les actions">
           {FILTRES.map((f) => {
             const actif = filtre === f.id
@@ -427,8 +432,8 @@ export default function ATraiter() {
                 aria-pressed={actif}
                 className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
                   actif
-                    ? 'border-indigo-600 bg-indigo-600 text-white'
-                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                    ? 'border-action-600 bg-action-600 text-white'
+                    : 'border-slate-300 bg-papier text-slate-700 hover:bg-slate-50'
                 }`}
               >
                 {f.libelle}
@@ -458,7 +463,7 @@ export default function ATraiter() {
             }}
             placeholder="Rechercher un expéditeur, un sujet…   ( / )"
             aria-label="Rechercher dans les actions"
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-indigo-600"
+            className={`w-full rounded-lg border ${CONTOUR} bg-papier py-2 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-indigo-600`}
           />
           {recherche && (
             <button
@@ -484,7 +489,9 @@ export default function ATraiter() {
               aria-pressed={tri === t.id}
               onClick={() => setTri(t.id)}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-indigo-600 ${
-                tri === t.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                tri === t.id
+                  ? 'bg-papier text-slate-900 shadow-sm dark:bg-slate-300'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               {t.libelle}
@@ -496,7 +503,7 @@ export default function ATraiter() {
       {/* Erreur */}
       {erreur && (
         <div
-          className="mb-4 mx-4 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800 md:mx-6"
+          className="mx-4 mb-4 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200 md:mx-6"
           role="alert"
         >
           <span>{erreur}</span>
@@ -521,7 +528,7 @@ export default function ATraiter() {
             Chargement…
           </div>
         ) : ordonnees.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-papier px-6 py-14 text-center">
             <ClipboardCheck className="mx-auto size-10 text-emerald-500" aria-hidden="true" />
             <p className="mt-3 text-sm font-semibold text-slate-800">
               {filtreActif ? 'Aucune action ne correspond' : 'Tout est à jour'}
@@ -538,7 +545,7 @@ export default function ATraiter() {
                   setFiltre('tout')
                   setRecherche('')
                 }}
-                className="mt-4 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className={`mt-4 rounded-lg border ${CONTOUR} px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50`}
               >
                 Effacer les filtres
               </button>
@@ -586,7 +593,8 @@ export default function ATraiter() {
         )}
       </div>
 
-      {/* Confirmations annulables */}
+      {/* Confirmations annulables : fond fixe (identique en clair et en sombre),
+          car slate-900 devient presque blanc en mode sombre. */}
       <div
         className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex flex-col items-center gap-2 px-3"
         role="status"
@@ -595,13 +603,13 @@ export default function ATraiter() {
         {toasts.map((t) => (
           <div
             key={t.ref}
-            className="pointer-events-auto flex items-center gap-4 rounded-xl bg-slate-900 px-4 py-2.5 text-sm text-white shadow-lg"
+            className="pointer-events-auto flex items-center gap-4 rounded-xl bg-nav-800 px-4 py-2.5 text-sm text-white shadow-lg ring-1 ring-white/10"
           >
             <span>{t.texte}</span>
             <button
               type="button"
               onClick={() => annuler(t.ref)}
-              className="inline-flex items-center gap-1.5 font-semibold text-indigo-300 hover:text-indigo-200 focus-visible:outline-2 focus-visible:outline-indigo-300"
+              className="inline-flex items-center gap-1.5 font-semibold text-nav-accent hover:text-white focus-visible:outline-2 focus-visible:outline-nav-accent"
             >
               <Undo2 className="size-4" aria-hidden="true" />
               Annuler
@@ -630,9 +638,14 @@ function CarteAction({
   const enRetard = estEnRetard(a, maintenant)
 
   const styles = urgent
-    ? { badge: 'bg-red-100 text-red-700', barre: 'bg-red-500', icone: AlertTriangle, libelle: 'Urgent' }
+    ? {
+        badge: 'bg-red-100 text-red-700 dark:bg-red-400/15 dark:text-red-300',
+        barre: 'bg-red-500',
+        icone: AlertTriangle,
+        libelle: 'Urgent',
+      }
     : {
-        badge: 'bg-amber-100 text-amber-700',
+        badge: 'bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300',
         barre: 'bg-amber-400',
         icone: ClipboardCheck,
         libelle: 'Action requise',
@@ -645,10 +658,13 @@ function CarteAction({
     const diff = new Date(a.echeance) - maintenant
     delai =
       diff < 0
-        ? { texte: `En retard de ${dureeLisible(diff)}`, ton: 'text-red-700 font-semibold' }
+        ? {
+            texte: `En retard de ${dureeLisible(diff)}`,
+            ton: 'text-red-700 font-semibold dark:text-red-300',
+          }
         : {
             texte: `Dans ${dureeLisible(diff)}`,
-            ton: diff < 86400000 ? 'text-amber-700 font-semibold' : 'text-slate-600',
+            ton: diff < 86400000 ? 'text-amber-700 font-semibold dark:text-amber-300' : 'text-slate-600',
           }
   }
 
@@ -656,8 +672,10 @@ function CarteAction({
     <li
       id={`action-${a.reference_message}`}
       onClick={onSelect}
-      className={`relative overflow-hidden rounded-xl border bg-white shadow-sm transition hover:shadow-md ${
-        enRetard ? 'border-red-300 bg-red-50/40' : 'border-slate-200'
+      className={`relative overflow-hidden rounded-xl border shadow-sm transition hover:shadow-md dark:hover:shadow-black/40 ${
+        enRetard
+          ? 'border-red-300 bg-red-50/60 dark:border-red-400/40 dark:bg-red-400/10'
+          : 'border-slate-200 bg-papier'
       } ${selectionnee ? 'ring-2 ring-indigo-500' : ''}`}
     >
       <span className={`absolute inset-y-0 left-0 w-1 ${enRetard ? 'bg-red-500' : styles.barre}`} aria-hidden="true" />
@@ -675,7 +693,7 @@ function CarteAction({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               {prioritaire && (
-                <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
+                <span className="rounded-full bg-action-600 px-2 py-0.5 text-xs font-semibold text-white">
                   À faire en premier
                 </span>
               )}
@@ -726,7 +744,7 @@ function CarteAction({
         {/* Droite : actions */}
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {dejaPris ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/30">
               <Check className="size-3.5" aria-hidden="true" />
               Pris en compte
             </span>
@@ -738,7 +756,7 @@ function CarteAction({
                 onAccuser(a, 'PRIS_EN_COMPTE')
               }}
               disabled={enCours}
-              className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              className="inline-flex items-center gap-1.5 rounded-full bg-action-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-action-700 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             >
               {enCours ? (
                 <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
@@ -757,7 +775,7 @@ function CarteAction({
                 onAccuser(a, 'FAIT')
               }}
               disabled={enCours}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-papier px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
             >
               <CheckCheck className="size-3.5" aria-hidden="true" />
               Marquer comme fait

@@ -1,10 +1,11 @@
 import { useLocation } from 'react-router-dom'
 import { Menu } from 'lucide-react'
+import ThemeToggle from './ThemeToggle'
 
 const TITRES = {
   '/': 'Tableau de bord',
   '/documents': 'Documents',
-   '/notifications': 'Notifications',
+  '/notifications': 'Notifications',
   '/annuaire': 'Annuaire',
   '/admin': 'Administration',
   '/a-traiter': 'A traiter',
@@ -44,6 +45,9 @@ export default function Header({ onMenu, refEmplacement }) {
       <h1 className="flex-1 truncate text-xl font-bold text-slate-900 peer-[:not(:empty)]:sr-only">
         {titrePage(pathname)}
       </h1>
+
+      {/* Bouton mode clair / sombre : toujours à droite du header */}
+      <ThemeToggle className="shrink-0" />
     </header>
   )
 }

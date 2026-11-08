@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Download, File, FileImage, FileSpreadsheet, FileText,
-  Loader2, MessageSquare, Presentation, Search, FolderOpen, 
-  ExternalLink, ArrowUpDown, X, Calendar, Eye
+  Loader2, MessageSquare, Search, FolderOpen,
+  ExternalLink, ArrowUpDown, X, Calendar, Eye, SlidersHorizontal,
+  ChevronDown, Presentation
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
@@ -12,8 +13,13 @@ import { messageErreur } from '../utils'
 
 const LIMITE = 30
 
-const CATEGORIES = [
+const FILTRES_RAPIDES = [
   { id: '', libelle: 'Tous' },
+  { id: 'image', libelle: 'Images' },
+]
+
+const CATEGORIES = [
+  { id: '', libelle: 'Tous les types' },
   { id: 'pdf', libelle: 'PDF' },
   { id: 'texte', libelle: 'Textes' },
   { id: 'tableur', libelle: 'Tableurs' },
@@ -28,13 +34,38 @@ const TRIS = [
   { id: 'taille', libelle: 'Taille' },
 ]
 
+// ✅ Couleurs 100% thémées (bleu, indigo, violet, mangue, slate)
 const STYLES = {
-  pdf: { icone: FileText, classes: 'bg-red-50 text-red-600', label: 'PDF' },
-  texte: { icone: FileText, classes: 'bg-indigo-50 text-indigo-600', label: 'Texte' },
-  tableur: { icone: FileSpreadsheet, classes: 'bg-emerald-50 text-emerald-600', label: 'Tableur' },
-  presentation: { icone: Presentation, classes: 'bg-amber-50 text-amber-600', label: 'Présentation' },
-  image: { icone: FileImage, classes: 'bg-sky-50 text-sky-600', label: 'Image' },
-  autre: { icone: File, classes: 'bg-slate-100 text-slate-600', label: 'Fichier' },
+  pdf: {
+    icone: FileText,
+    classes: 'bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 dark:from-blue-100 dark:to-blue-200 dark:text-blue-800',
+    label: 'PDF',
+  },
+  texte: {
+    icone: FileText,
+    classes: 'bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-600 dark:from-indigo-100 dark:to-indigo-200 dark:text-indigo-800',
+    label: 'Texte',
+  },
+  tableur: {
+    icone: FileSpreadsheet,
+    classes: 'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-700 dark:from-blue-200 dark:to-blue-300 dark:text-blue-900',
+    label: 'Tableur',
+  },
+  presentation: {
+    icone: Presentation,
+    classes: 'bg-gradient-to-br from-violet-100 to-violet-200 text-violet-700 dark:from-violet-100 dark:to-violet-200 dark:text-violet-800',
+    label: 'Présentation',
+  },
+  image: {
+    icone: FileImage,
+    classes: 'bg-gradient-to-br from-blue-50 to-blue-100 text-blue-500 dark:from-blue-100 dark:to-blue-200 dark:text-blue-700',
+    label: 'Image',
+  },
+  autre: {
+    icone: File,
+    classes: 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600 dark:from-slate-200 dark:to-slate-300 dark:text-slate-700',
+    label: 'Fichier',
+  },
 }
 
 const EXTENSIONS = {
@@ -55,24 +86,76 @@ function formaterDate(iso) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function estRecent(iso) {
+  if (!iso) return false
+  const diff = Date.now() - new Date(iso).getTime()
+  return diff < 24 * 60 * 60 * 1000
+}
+
+const CONTOUR = 'border-slate-200 dark:border-slate-300'
+const ERREUR_BLOC = 'border border-red-200 bg-red-50 text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200'
+
 export default function Documents() {
   const [documents, setDocuments] = useState([])
   const [peutPlus, setPeutPlus] = useState(false)
   const [chargement, setChargement] = useState(true)
   const [chargementPlus, setChargementPlus] = useState(false)
   const [erreur, setErreur] = useState('')
-  
+
   const [recherche, setRecherche] = useState('')
   const [categorie, setCategorie] = useState('')
   const [tri, setTri] = useState('recent')
   const [dateDebut, setDateDebut] = useState('')
   const [dateFin, setDateFin] = useState('')
-  
+
   const [telecharge, setTelecharge] = useState(null)
-  const [apercuImage, setApercuImage] = useState(null)
+  const [apercuDocument, setApercuDocument] = useState(null)
+  const [filtresOuverts, setFiltresOuverts] = useState(false)
+  const [pdfUrl, setPdfUrl] = useState(null)
 
   const rechercheDebouncee = useDebounce(recherche, 300)
+  const rechercheRef = useRef(null)
+  const sentinelleRef = useRef(null)
+  const panneauRef = useRef(null)
+
+  const filtreRapideActif = categorie === 'image' ? 'image' : ''
+
+  const nbFiltresActifs = [
+    categorie !== '' && categorie !== 'image',
+    dateDebut !== '',
+    dateFin !== '',
+  ].filter(Boolean).length
+
   const filtreActif = rechercheDebouncee.trim() !== '' || categorie !== '' || tri !== 'recent' || dateDebut !== '' || dateFin !== ''
+
+  // Fermeture panneau au clic extérieur
+  useEffect(() => {
+    function surClicExterieur(e) {
+      if (panneauRef.current && !panneauRef.current.contains(e.target)) {
+        setFiltresOuverts(false)
+      }
+    }
+    if (filtresOuverts) {
+      document.addEventListener('mousedown', surClicExterieur)
+      return () => document.removeEventListener('mousedown', surClicExterieur)
+    }
+  }, [filtresOuverts])
+
+  // Raccourcis clavier
+  useEffect(() => {
+    function surTouche(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        rechercheRef.current?.focus()
+      }
+      if (e.key === 'Escape') {
+        if (apercuDocument) setApercuDocument(null)
+        if (filtresOuverts) setFiltresOuverts(false)
+      }
+    }
+    document.addEventListener('keydown', surTouche)
+    return () => document.removeEventListener('keydown', surTouche)
+  }, [apercuDocument, filtresOuverts])
 
   function parametres(extra = {}) {
     return {
@@ -111,9 +194,11 @@ export default function Documents() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rechercheDebouncee, categorie, tri, dateDebut, dateFin])
 
-  async function chargerPlus() {
+  const chargerPlus = useCallback(async () => {
+    if (chargementPlus || !peutPlus) return
     const dernier = documents[documents.length - 1]
     if (!dernier) return
+
     setChargementPlus(true)
     try {
       const { data } = await api.get('/api/documents', {
@@ -126,7 +211,45 @@ export default function Documents() {
     } finally {
       setChargementPlus(false)
     }
-  }
+  }, [documents, peutPlus, chargementPlus, rechercheDebouncee, categorie, tri, dateDebut, dateFin])
+
+  // Scroll infini
+  useEffect(() => {
+    if (!sentinelleRef.current || !peutPlus) return
+    const observateur = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) chargerPlus()
+      },
+      { rootMargin: '200px' }
+    )
+    observateur.observe(sentinelleRef.current)
+    return () => observateur.disconnect()
+  }, [chargerPlus, peutPlus])
+
+  // Chargement du blob PDF pour l'aperçu
+  useEffect(() => {
+    if (!apercuDocument) {
+      setPdfUrl(null)
+      return
+    }
+    const estImage = apercuDocument.type_mime?.startsWith('image/')
+    if (estImage) return
+
+    let url = null
+    let annule = false
+    api.get(`/api/fichiers/${apercuDocument.reference_fichier}`, { responseType: 'blob' })
+      .then(({ data }) => {
+        if (annule) return
+        url = URL.createObjectURL(data)
+        setPdfUrl(url)
+      })
+      .catch(() => setPdfUrl(null))
+
+    return () => {
+      annule = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [apercuDocument])
 
   async function telecharger(doc) {
     setTelecharge(doc.reference_fichier)
@@ -148,10 +271,6 @@ export default function Documents() {
     }
   }
 
-  function fermerApercu() {
-    setApercuImage(null)
-  }
-
   function effacerFiltres() {
     setRecherche('')
     setCategorie('')
@@ -162,93 +281,179 @@ export default function Documents() {
 
   return (
     <>
-      <div className="flex h-full flex-col bg-slate-50/50">
-        
+      <div className="flex h-full flex-col bg-slate-50">
         {/* ===== En-tête (Filtres) ===== */}
-        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-6 py-4 backdrop-blur md:px-8">
+        <div className="sticky top-0 z-10 border-b border-slate-200 bg-papier/95 px-6 py-4 backdrop-blur md:px-8">
           <div className="mx-auto max-w-[1600px]">
-            
             <div className="flex flex-wrap items-center gap-3">
-              
               {/* Recherche */}
-              <div className="relative w-full sm:w-64">
+              <div className="relative w-full sm:w-80">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <input
+                  ref={rechercheRef}
                   type="search"
                   value={recherche}
                   onChange={(e) => setRecherche(e.target.value)}
-                  placeholder="Rechercher…"
-                  className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
+                  placeholder="Rechercher un document… (Ctrl+K)"
+                  className={`w-full rounded-lg border ${CONTOUR} bg-papier py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15`}
                 />
+                {recherche && (
+                  <button
+                    type="button"
+                    onClick={() => setRecherche('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                    aria-label="Effacer la recherche"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
               </div>
 
-              {/* Filtres par catégorie */}
-              <div className="flex flex-wrap gap-1.5">
-                {CATEGORIES.map((c) => {
-                  const actif = categorie === c.id
+              {/* Filtres rapides */}
+              <div className="flex items-center gap-1.5">
+                {FILTRES_RAPIDES.map((f) => {
+                  const actif = filtreRapideActif === f.id
                   return (
                     <button
-                      key={c.id || 'tous'}
+                      key={f.id || 'tous'}
                       type="button"
-                      onClick={() => setCategorie(c.id)}
-                      className={`whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                      onClick={() => setCategorie(f.id)}
+                      className={`whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                         actif
-                          ? 'border-blue-600 bg-blue-600 text-white'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                          ? 'border-action-600 bg-action-600 text-white'
+                          : `${CONTOUR} bg-papier text-slate-700 hover:border-slate-300 hover:bg-slate-50`
                       }`}
                     >
-                      {c.libelle}
+                      {f.libelle}
                     </button>
                   )
                 })}
               </div>
 
-              {/* Dates */}
-              <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-                <Calendar className="size-3.5 text-slate-400" />
-                <input
-                  type="date"
-                  value={dateDebut}
-                  onChange={(e) => setDateDebut(e.target.value)}
-                  aria-label="Date de début"
-                  className="bg-transparent text-xs text-slate-700 outline-none w-28"
-                />
-                <span className="text-xs text-slate-400">au</span>
-                <input
-                  type="date"
-                  value={dateFin}
-                  onChange={(e) => setDateFin(e.target.value)}
-                  aria-label="Date de fin"
-                  className="bg-transparent text-xs text-slate-700 outline-none w-28"
-                />
+              {/* Filtres avancés */}
+              <div className="relative" ref={panneauRef}>
+                <button
+                  type="button"
+                  onClick={() => setFiltresOuverts((v) => !v)}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                    nbFiltresActifs > 0
+                      ? 'border-action-600 bg-action-600/10 text-action-700 dark:bg-action-600/20 dark:text-action-300'
+                      : `${CONTOUR} bg-papier text-slate-700 hover:border-slate-300 hover:bg-slate-50`
+                  }`}
+                  aria-expanded={filtresOuverts}
+                >
+                  <SlidersHorizontal className="size-3.5" />
+                  Filtres
+                  {nbFiltresActifs > 0 && (
+                    <span className="flex size-4 items-center justify-center rounded-full bg-action-600 text-[10px] font-bold text-white">
+                      {nbFiltresActifs}
+                    </span>
+                  )}
+                  <ChevronDown className={`size-3.5 transition-transform ${filtresOuverts ? 'rotate-180' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                  {filtresOuverts && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute left-0 top-full z-20 mt-2 w-80 rounded-xl border border-slate-200 bg-papier p-4 shadow-xl dark:border-slate-300"
+                    >
+                      <div className="mb-4">
+                        <label className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Type de fichier
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {CATEGORIES.map((c) => {
+                            const actif = categorie === c.id
+                            return (
+                              <button
+                                key={c.id || 'tous'}
+                                type="button"
+                                onClick={() => setCategorie(c.id)}
+                                className={`whitespace-nowrap rounded-md border px-2.5 py-1 text-[11px] font-semibold transition ${
+                                  actif
+                                    ? 'border-action-600 bg-action-600 text-white'
+                                    : `${CONTOUR} bg-papier text-slate-600 hover:bg-slate-50`
+                                }`}
+                              >
+                                {c.libelle}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                          Période
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            value={dateDebut}
+                            onChange={(e) => setDateDebut(e.target.value)}
+                            aria-label="Date de début"
+                            className={`w-full rounded-md border ${CONTOUR} bg-papier px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15`}
+                          />
+                          <span className="text-xs text-slate-400">au</span>
+                          <input
+                            type="date"
+                            value={dateFin}
+                            onChange={(e) => setDateFin(e.target.value)}
+                            aria-label="Date de fin"
+                            className={`w-full rounded-md border ${CONTOUR} bg-papier px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15`}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-200">
+                        <button
+                          type="button"
+                          onClick={() => { effacerFiltres(); setFiltresOuverts(false) }}
+                          className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+                        >
+                          Tout effacer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFiltresOuverts(false)}
+                          className="rounded-md bg-action-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-action-700"
+                        >
+                          Appliquer
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* Tri */}
-              <div className="ml-auto flex items-center gap-2">
-                <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
-                  <ArrowUpDown className="size-3.5 text-slate-400" />
-                  <select
-                    value={tri}
-                    onChange={(e) => setTri(e.target.value)}
-                    className="bg-transparent text-xs font-medium text-slate-700 focus:outline-none"
-                  >
-                    {TRIS.map((t) => (
-                      <option key={t.id} value={t.id}>{t.libelle}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {filtreActif && (
-                  <button
-                    type="button"
-                    onClick={effacerFiltres}
-                    className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-                  >
-                    <X className="size-3.5" />
-                    Effacer
-                  </button>
-                )}
+              <div className={`flex items-center gap-1.5 rounded-lg border ${CONTOUR} bg-papier px-2 py-1.5 shadow-sm`}>
+                <ArrowUpDown className="size-3.5 text-slate-400" />
+                <select
+                  value={tri}
+                  onChange={(e) => setTri(e.target.value)}
+                  className="bg-transparent text-xs font-medium text-slate-700 focus:outline-none"
+                >
+                  {TRIS.map((t) => (
+                    <option key={t.id} value={t.id}>{t.libelle}</option>
+                  ))}
+                </select>
               </div>
+
+              {filtreActif && (
+                <button
+                  type="button"
+                  onClick={effacerFiltres}
+                  className="ml-auto flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                >
+                  <X className="size-3.5" />
+                  Effacer
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -257,7 +462,7 @@ export default function Documents() {
         <div className="flex-1 overflow-y-auto px-6 py-6 md:px-8">
           <div className="mx-auto max-w-[1600px]">
             {erreur && (
-              <p className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+              <p className={`mb-6 rounded-xl px-4 py-3 text-sm ${ERREUR_BLOC}`} role="alert">
                 {erreur}
               </p>
             )}
@@ -268,8 +473,8 @@ export default function Documents() {
                 Chargement des documents…
               </div>
             ) : documents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-20 text-center">
-                <div className="flex size-16 items-center justify-center rounded-full bg-slate-50 text-slate-400">
+              <div className="flex min-h-[400px] flex-col items-center justify-center px-6 text-center">
+                <div className="flex size-16 items-center justify-center rounded-full bg-slate-200 text-slate-500">
                   <FolderOpen className="size-8" aria-hidden="true" />
                 </div>
                 <p className="mt-4 text-base font-semibold text-slate-800">
@@ -287,114 +492,116 @@ export default function Documents() {
                   {documents.length}{peutPlus ? '+' : ''} document{documents.length > 1 ? 's' : ''} trouvé{documents.length > 1 ? 's' : ''}
                 </p>
 
-                {/* ✅ GRILLE 6 COLONNES */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                   {documents.map((d) => {
                     const cat = categorieDe(d.nom_original)
                     const style = STYLES[cat]
                     const Icone = style.icone
-                    
                     const estImage = d.type_mime?.startsWith('image/') && !!d.url_preview
-                    
+                    const estPDF = cat === 'pdf'
+                    const estNouveau = estRecent(d.date_envoi)
+
                     const auteur = d.envoye_par_moi
                       ? 'Vous'
                       : [d.expediteur?.prenom, d.expediteur?.nom].filter(Boolean).join(' ')
 
-                    return (
-                      <div 
-                        key={d.reference_fichier} 
-                        className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-500/30 hover:shadow-lg isolate"
-                      >
-                        {/* Image ou Icône */}
-                        <div 
-                          className="relative w-full shrink-0 overflow-hidden bg-slate-100"
-                          style={{ height: '110px', maxHeight: '110px' }}
-                        >
-                          {estImage ? (
-                            <img 
-                              src={d.url_preview}
-                              alt={d.nom_original}
-                              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                              loading="lazy"
-                              onError={(e) => { e.target.style.display = 'none' }}
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center">
-                              <div className={`flex size-12 items-center justify-center rounded-xl ${style.classes}`}>
-                                <Icone className="size-6" aria-hidden="true" />
-                              </div>
-                            </div>
-                          )}
+                    const peutApercevoir = estImage || estPDF
 
-                          {/* Actions sur l'image */}
-                          {estImage && (
-                            <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                              <button
-                                type="button"
-                                onClick={() => setApercuImage({ url: d.url_preview, nom: d.nom_original })}
-                                title="Voir l'image en grand"
-                                className="rounded-md bg-black/50 p-1.5 text-white backdrop-blur transition hover:bg-black/70"
-                              >
-                                <Eye className="size-3.5" />
-                              </button>
+                    return (
+                      <div
+                        key={d.reference_fichier}
+                        className="group relative isolate flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-papier shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-500/30 hover:shadow-lg dark:border-slate-300 dark:hover:shadow-black/40 sm:min-h-[260px]"
+                      >
+                        <div className="flex flex-row sm:flex-col">
+                          <div className="relative w-24 shrink-0 overflow-hidden bg-slate-100 sm:h-[120px] sm:w-full">
+                            {estImage ? (
+                              <img
+                                src={d.url_preview}
+                                alt={d.nom_original}
+                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                loading="lazy"
+                                onError={(e) => { e.target.style.display = 'none' }}
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center">
+                                <div className={`flex size-12 items-center justify-center rounded-xl border border-white/50 shadow-sm ${style.classes}`}>
+                                  <Icone className="size-6" aria-hidden="true" />
+                                </div>
+                              </div>
+                            )}
+
+                            {estNouveau && (
+                              <span className="absolute left-2 top-2 rounded-full bg-mangue-500 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-md">
+                                Nouveau
+                              </span>
+                            )}
+
+                            <div className="absolute right-1.5 top-1.5 flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                              {peutApercevoir && (
+                                <button
+                                  type="button"
+                                  onClick={() => setApercuDocument(d)}
+                                  title="Aperçu"
+                                  className="rounded-md bg-black/60 p-1.5 text-white backdrop-blur transition hover:bg-black/80"
+                                >
+                                  <Eye className="size-3.5" />
+                                </button>
+                              )}
                               {d.conversation?.reference_conversation && (
                                 <Link
                                   to={`/conversations/${d.conversation.reference_conversation}`}
                                   title="Voir dans la conversation"
-                                  className="rounded-md bg-black/50 p-1.5 text-white backdrop-blur transition hover:bg-black/70"
+                                  className="rounded-md bg-black/60 p-1.5 text-white backdrop-blur transition hover:bg-black/80"
                                 >
                                   <ExternalLink className="size-3.5" />
                                 </Link>
                               )}
                             </div>
-                          )}
-                        </div>
-
-                        {/* Contenu textuel */}
-                        <div className="flex min-w-0 flex-1 flex-col justify-between p-3">
-                          <div>
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="line-clamp-2 text-[13px] font-bold leading-tight text-slate-900" title={d.nom_original}>
-                                {d.nom_original}
-                              </p>
-                              <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
-                                {style.label}
-                              </span>
-                            </div>
-                            
-                            <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500">
-                              <span className="truncate">
-                                <strong className="font-semibold text-slate-700">{auteur}</strong>
-                                {' · '}{formaterDate(d.date_envoi)}
-                              </span>
-                            </div>
                           </div>
 
-                          {/* Pied de carte : Conversation + Bouton Télécharger */}
-                          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
-                            {d.conversation?.titre ? (
-                              <span className="flex max-w-[45%] items-center gap-1.5 truncate text-[11px] font-medium text-slate-500">
-                                <MessageSquare className="size-3.5 shrink-0 text-slate-400" />
-                                <span className="truncate">{d.conversation.titre}</span>
-                              </span>
-                            ) : (
-                              <span />
-                            )}
+                          <div className="flex min-w-0 flex-1 flex-col justify-between p-3">
+                            <div>
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="line-clamp-2 text-[13px] font-bold leading-tight text-slate-900" title={d.nom_original}>
+                                  {d.nom_original}
+                                </p>
+                                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                                  {style.label}
+                                </span>
+                              </div>
 
-                            {/* ✅ BOUTON BLEU MODERNE */}
-                            <button
-                              type="button"
-                              onClick={() => telecharger(d)}
-                              disabled={telecharge === d.reference_fichier}
-                              className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-[11px] font-bold text-blue-600 transition-colors hover:bg-blue-600 hover:text-white disabled:opacity-50"
-                            >
-                              {telecharge === d.reference_fichier ? (
-                                <Loader2 className="size-3.5 animate-spin" />
+                              <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-slate-500">
+                                <span className="truncate">
+                                  <strong className="font-semibold text-slate-700">{auteur}</strong>
+                                  {' · '}{formaterDate(d.date_envoi)}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
+                              {d.conversation?.titre ? (
+                                <span className="flex max-w-[45%] items-center gap-1.5 truncate text-[11px] font-medium text-slate-500">
+                                  <MessageSquare className="size-3.5 shrink-0 text-slate-400" />
+                                  <span className="truncate">{d.conversation.titre}</span>
+                                </span>
                               ) : (
-                                <Download className="size-3.5" />
+                                <span />
                               )}
-                              Télécharger
-                            </button>
+
+                              <button
+                                type="button"
+                                onClick={() => telecharger(d)}
+                                disabled={telecharge === d.reference_fichier}
+                                className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1.5 text-[11px] font-bold text-blue-600 transition-colors hover:bg-action-600 hover:text-white disabled:opacity-50"
+                              >
+                                {telecharge === d.reference_fichier ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="size-3.5" />
+                                )}
+                                <span className="hidden sm:inline">Télécharger</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -402,17 +609,19 @@ export default function Documents() {
                   })}
                 </div>
 
-                {peutPlus && (
-                  <div className="mt-8 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={chargerPlus}
-                      disabled={chargementPlus}
-                      className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600 disabled:opacity-60"
-                    >
-                      {chargementPlus ? 'Chargement…' : 'Charger plus de documents'}
-                    </button>
+                <div ref={sentinelleRef} className="h-4" />
+
+                {chargementPlus && (
+                  <div className="mt-4 flex items-center justify-center gap-2 text-sm text-slate-500">
+                    <Loader2 className="size-4 animate-spin" />
+                    Chargement…
                   </div>
+                )}
+
+                {!peutPlus && documents.length > 0 && (
+                  <p className="mt-8 text-center text-xs text-slate-400">
+                    — Fin des documents —
+                  </p>
                 )}
               </>
             )}
@@ -422,16 +631,16 @@ export default function Documents() {
 
       {/* ===== Modale d'aperçu ===== */}
       <AnimatePresence>
-        {apercuImage && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
+        {apercuDocument && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8" role="dialog" aria-modal="true">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={fermerApercu}
-              className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm"
+              onClick={() => setApercuDocument(null)}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm"
             />
-            
+
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -441,29 +650,42 @@ export default function Documents() {
             >
               <button
                 type="button"
-                onClick={fermerApercu}
+                onClick={() => setApercuDocument(null)}
                 className="absolute -right-2 -top-12 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-white sm:-right-4"
                 aria-label="Fermer l'aperçu"
               >
                 <X className="size-6" />
               </button>
 
-              <img
-                src={apercuImage.url}
-                alt={apercuImage.nom}
-                className="max-h-[80vh] w-auto rounded-lg object-contain shadow-2xl"
-              />
+              {apercuDocument.type_mime?.startsWith('image/') ? (
+                <img
+                  src={apercuDocument.url_preview}
+                  alt={apercuDocument.nom_original}
+                  className="max-h-[80vh] w-auto rounded-lg object-contain shadow-2xl"
+                />
+              ) : pdfUrl ? (
+                <iframe
+                  src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                  title={apercuDocument.nom_original}
+                  className="h-[80vh] w-full rounded-lg bg-white shadow-2xl"
+                />
+              ) : (
+                <div className="flex h-64 items-center justify-center gap-2 rounded-lg bg-white/10 px-8 text-white">
+                  <Loader2 className="size-5 animate-spin" />
+                  Chargement de l'aperçu…
+                </div>
+              )}
 
               <div className="mt-4 flex w-full items-center justify-between rounded-lg bg-white/10 px-4 py-3 text-sm text-white backdrop-blur">
-                <span className="truncate font-medium">{apercuImage.nom}</span>
-                <a
-                  href={apercuImage.url}
-                  download={apercuImage.nom}
+                <span className="truncate font-medium">{apercuDocument.nom_original}</span>
+                <button
+                  type="button"
+                  onClick={() => telecharger(apercuDocument)}
                   className="ml-4 flex shrink-0 items-center gap-2 rounded-md bg-white/20 px-3 py-1.5 text-xs font-semibold transition hover:bg-white/30"
                 >
                   <Download className="size-3.5" />
                   Télécharger
-                </a>
+                </button>
               </div>
             </motion.div>
           </div>

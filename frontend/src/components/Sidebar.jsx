@@ -54,11 +54,13 @@ const SECTIONS = [
   },
 ]
 
-const COULEUR_ACTIF = '#2563EB'
-const COULEUR_BOUTON_REPLI = '#22C55E' // Vert de la maquette
-
+/* ------------------------------------------------------------
+   Couleurs de la sidebar : tokens `nav-*` définis dans le CSS
+   (@theme static), non surchargés par [data-theme="dark"].
+   La sidebar reste donc identique en mode clair et sombre.
+   ------------------------------------------------------------ */
 const ANNEAU_FOCUS =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A3D8D2] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2925]'
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nav-accent focus-visible:ring-offset-2 focus-visible:ring-offset-nav-900'
 
 /* ============================================================
    Utilitaires et hooks
@@ -168,6 +170,7 @@ function infoConversation(c, moi) {
 
 /* ============================================================
    Pastille de compteur
+   Normal : orange (nav-badge, #d9461a) / Urgent : rouge 600
    ============================================================ */
 function Pastille({ valeur, urgent, compacte }) {
   if (!valeur || valeur <= 0) return null
@@ -175,10 +178,10 @@ function Pastille({ valeur, urgent, compacte }) {
   return (
     <span
       className={`flex items-center justify-center rounded-full font-bold text-white ${
-        urgent ? 'bg-red-500' : 'bg-[#E95420]'
+        urgent ? 'bg-red-600' : 'bg-nav-badge'
       } ${
         compacte
-          ? 'absolute right-1 top-1 h-4 min-w-4 px-1 text-[9px] ring-2 ring-[#0B2925]'
+          ? 'absolute right-1 top-1 h-4 min-w-4 px-1 text-[9px] ring-2 ring-nav-900'
           : 'h-5 min-w-5 px-1.5 text-[11px]'
       }`}
       aria-label={`${valeur} élément${valeur > 1 ? 's' : ''} en attente`}
@@ -219,7 +222,7 @@ function InfoBulle({ texte, actif, children, className = 'block' }) {
           <div
             role="tooltip"
             style={{ top: pos.top, left: pos.left }}
-            className="pointer-events-none fixed z-[60] -translate-y-1/2 whitespace-nowrap rounded-lg bg-[#123B35] px-3 py-1.5 text-xs font-medium text-white shadow-lg ring-1 ring-white/10"
+            className="pointer-events-none fixed z-[60] -translate-y-1/2 whitespace-nowrap rounded-lg bg-nav-800 px-3 py-1.5 text-xs font-medium text-white shadow-lg ring-1 ring-white/10"
           >
             {texte}
           </div>,
@@ -253,15 +256,13 @@ function Entree({ entree, actif, badge, replie, onClick }) {
       >
         {actif && (
           <span
-            className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full"
-            style={{ backgroundColor: COULEUR_ACTIF }}
+            className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-nav-accent"
             aria-hidden="true"
           />
         )}
 
         <Icone
-          className="size-5 shrink-0 transition-colors"
-          style={{ color: actif ? COULEUR_ACTIF : undefined }}
+          className={`size-5 shrink-0 transition-colors ${actif ? 'text-nav-accent' : ''}`}
           aria-hidden="true"
         />
 
@@ -299,7 +300,7 @@ function Recents({ conversations, moi, replie, onClick }) {
           <Link
             to="/conversations"
             onClick={onClick}
-            className={`rounded text-[10px] font-bold uppercase tracking-wider text-[#E95420] transition-colors hover:text-[#FF8A5C] ${ANNEAU_FOCUS}`}
+            className={`rounded text-[11px] font-bold uppercase tracking-wider text-nav-accent transition-colors hover:text-white ${ANNEAU_FOCUS}`}
           >
             Tout voir
           </Link>
@@ -340,14 +341,14 @@ function Recents({ conversations, moi, replie, onClick }) {
                       {nonLus > 0 ? (
                         <Pastille valeur={nonLus} />
                       ) : (
-                        info.groupe && <Users className="size-3.5 shrink-0 text-white/30" aria-hidden="true" />
+                        info.groupe && <Users className="size-3.5 shrink-0 text-white/40" aria-hidden="true" />
                       )}
                     </>
                   )}
 
                   {replie && nonLus > 0 && (
                     <span
-                      className="absolute right-1 top-1 size-2.5 rounded-full bg-[#E95420] ring-2 ring-[#0B2925]"
+                      className="absolute right-1 top-1 size-2.5 rounded-full bg-nav-badge ring-2 ring-nav-900"
                       aria-hidden="true"
                     />
                   )}
@@ -459,8 +460,10 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
         />
       )}
 
+      {/* Fond identique en clair et en sombre. En sombre, une fine bordure
+          sépare la sidebar du contenu (les deux fonds sont très proches). */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex shrink-0 flex-col bg-[#0B2925] transition-[width,transform] duration-200 lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex shrink-0 flex-col bg-nav-900 transition-[width,transform] duration-200 dark:border-r dark:border-white/10 lg:relative lg:translate-x-0 ${
           replie ? 'w-20' : 'w-64'
         } ${ouvert ? 'translate-x-0' : '-translate-x-full'}`}
         aria-label="Navigation principale"
@@ -468,16 +471,18 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
         {/* ===== En-tête (Logo, Nom, Repli, Fermer mobile) ===== */}
         <div
           className={`flex items-center ${
-            replie ? 'flex-col gap-3 pt-5' : 'gap-2 pl-4 pr-3 pt-6 lg:pr-0'
+            replie ? 'justify-center pt-5' : 'gap-2 pl-4 pr-3 pt-6 lg:pr-0'
           }`}
         >
-          {/* ✅ LOGO BLANC INTÉGRÉ */}
-          <img 
-            src={LOGO} 
-            alt="Fulmar" 
-            className={`${replie ? 'size-8 shrink-0' : 'size-9 shrink-0'}`} 
-            style={{ filter: 'brightness(0) invert(1)' }} 
-          />
+          {/* Logo masqué quand replié pour gagner de l'espace */}
+          {!replie && (
+            <img
+              src={LOGO}
+              alt=""
+              className="size-9 shrink-0"
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
+          )}
 
           {!replie && (
             <span className="flex-1 font-display text-xl font-extrabold leading-none text-white">
@@ -501,8 +506,7 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
           <button
             type="button"
             onClick={onBasculerRepli}
-            style={{ backgroundColor: COULEUR_BOUTON_REPLI }}
-            className={`hidden h-9 shrink-0 items-center justify-center text-white shadow-[0_0_18px_rgba(34,197,94,0.45)] transition-[filter] duration-200 hover:brightness-110 lg:flex ${
+            className={`hidden h-9 shrink-0 items-center justify-center bg-white/10 text-white/80 transition-colors duration-200 hover:bg-white/20 hover:text-white lg:flex ${
               replie ? 'size-9 rounded-full' : 'w-11 rounded-l-full'
             } ${ANNEAU_FOCUS}`}
             aria-label={replie ? 'Déplier le menu' : 'Replier le menu'}
@@ -645,7 +649,6 @@ export default function Sidebar({ ouvert, onFermer, replie: repliePrefere, onBas
             )}
           </div>
         )}
-
       </aside>
 
       <ConfirmationModal
