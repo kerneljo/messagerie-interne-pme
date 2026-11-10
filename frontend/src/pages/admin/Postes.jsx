@@ -4,6 +4,10 @@ import api from '../../api'
 import { Bouton, Chargement, EtatVide } from '../../components/ui'
 import ConfirmationModal from '../../components/ConfirmationModal'
 
+const CONTOUR = 'border-slate-200 dark:border-slate-300'
+const CLASSE_CHAMP =
+  'w-full rounded-lg border bg-papier px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+
 export default function AdminPostes() {
   const [postes, setPostes] = useState([])
   const [chargement, setChargement] = useState(true)
@@ -56,18 +60,17 @@ export default function AdminPostes() {
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+        <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
           placeholder="Rechercher un poste…"
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+          className={`${CLASSE_CHAMP} ${CONTOUR} pl-10 pr-4`}
         />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-papier dark:border-slate-300">
         {chargement ? (
           <Chargement />
         ) : postes.length === 0 ? (
@@ -76,28 +79,30 @@ export default function AdminPostes() {
           </EtatVide>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-100">
               <tr>
                 <th className="px-4 py-3">Libellé</th>
-                <th className="px-4 py-3 hidden sm:table-cell">Description</th>
+                <th className="hidden px-4 py-3 sm:table-cell">Description</th>
                 <th className="px-4 py-3 text-center">Utilisateurs</th>
                 <th className="px-4 py-3 text-center">Statut</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-200">
               {postes.map((p) => (
-                <tr key={p.code_poste} className="hover:bg-slate-50">
+                <tr key={p.code_poste} className="hover:bg-slate-50 dark:hover:bg-slate-100">
                   <td className="px-4 py-3 font-medium text-slate-900">{p.libelle}</td>
-                  <td className="px-4 py-3 text-slate-500 hidden sm:table-cell truncate max-w-xs">
+                  <td className="hidden max-w-xs truncate px-4 py-3 text-slate-500 sm:table-cell">
                     {p.description || '—'}
                   </td>
                   <td className="px-4 py-3 text-center text-slate-600">
                     {p.utilisateurs_count ?? 0}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
-                      p.actif ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                      p.actif
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-100 dark:text-blue-800'
+                        : 'bg-slate-100 text-slate-500 dark:bg-slate-200 dark:text-slate-700'
                     }`}>
                       {p.actif ? 'Actif' : 'Inactif'}
                     </span>
@@ -106,14 +111,14 @@ export default function AdminPostes() {
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => { setPosteEdite(p); setModalOuverte(true) }}
-                        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                        className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-200"
                         aria-label="Modifier"
                       >
                         <Pencil className="size-4" />
                       </button>
                       <button
                         onClick={() => setConfirmation(p)}
-                        className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                        className="rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/15"
                         aria-label="Supprimer"
                       >
                         <Trash2 className="size-4" />
@@ -175,33 +180,31 @@ function ModalPoste({ poste, onFermer, onEnregistre }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/50" onClick={onFermer} />
-      <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl">
-        <div className="border-b border-slate-100 px-6 py-4">
+      <div className="absolute inset-0 bg-slate-900/50 dark:bg-black/70" onClick={onFermer} />
+      <div className="relative z-10 w-full max-w-md rounded-2xl bg-papier shadow-2xl">
+        <div className="border-b border-slate-100 px-6 py-4 dark:border-slate-200">
           <h3 className="text-lg font-semibold text-slate-900">
             {poste ? 'Modifier le poste' : 'Nouveau poste'}
           </h3>
         </div>
-        <form onSubmit={soumettre} className="px-6 py-5 space-y-4">
+        <form onSubmit={soumettre} className="space-y-4 px-6 py-5">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Libellé *</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Libellé *</label>
             <input
               type="text"
               value={libelle}
               onChange={(e) => setLibelle(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className={`${CLASSE_CHAMP} ${CONTOUR}`}
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Description</label>
+            <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm resize-none
-                         focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className={`${CLASSE_CHAMP} ${CONTOUR} resize-none`}
             />
           </div>
           <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -209,13 +212,13 @@ function ModalPoste({ poste, onFermer, onEnregistre }) {
               type="checkbox"
               checked={actif}
               onChange={(e) => setActif(e.target.checked)}
-              className="rounded border-slate-300"
+              className="rounded border-slate-300 accent-action-600"
             />
             Poste actif (visible à l'inscription)
           </label>
 
           {erreur && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300">
               {erreur}
             </div>
           )}
@@ -225,14 +228,14 @@ function ModalPoste({ poste, onFermer, onEnregistre }) {
               type="button"
               onClick={onFermer}
               disabled={envoi}
-              className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className={`rounded-lg border px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:hover:bg-slate-100 ${CONTOUR}`}
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={envoi}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+              className="rounded-lg bg-action-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-700 disabled:opacity-60"
             >
               {envoi ? '…' : poste ? 'Enregistrer' : 'Créer'}
             </button>

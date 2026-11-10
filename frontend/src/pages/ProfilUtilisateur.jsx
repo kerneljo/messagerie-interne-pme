@@ -4,7 +4,6 @@ import {
   ArrowLeft, Mail, Briefcase, Building2, Shield,
   AlertTriangle, User as UserIcon,
   Copy, Check, Clock,
-  MessagesSquare, Send, Inbox, Paperclip,
   MessageSquare, ExternalLink, MapPin, Phone,
 } from 'lucide-react'
 import api from '../api'
@@ -64,33 +63,33 @@ export default function ProfilUtilisateur() {
     return (
       <div className="w-full p-6">
         <BoutonRetour onClick={() => navigate(-1)} />
-        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
-          <AlertTriangle className="size-10 text-red-500 mx-auto mb-3" />
-          <h2 className="text-lg font-semibold text-red-900">Profil introuvable</h2>
-          <p className="mt-1 text-sm text-red-700">{erreur}</p>
+        <div className="mt-6 flex flex-col items-center rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-500/30 dark:bg-red-500/15">
+          <AlertTriangle className="mb-3 size-10 text-red-500 dark:text-red-400" />
+          <h2 className="text-lg font-semibold text-red-900 dark:text-red-200">Profil introuvable</h2>
+          <p className="mt-1 text-sm text-red-700 dark:text-red-300">{erreur}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-full bg-slate-50">
-      <div className="w-full px-6 py-6">
+    <div className="min-h-full bg-slate-50 dark:bg-slate-50">
+      <div className="mx-auto w-full max-w-[1600px] px-6 py-6">
 
         {/* Barre supérieure */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <BoutonRetour onClick={() => navigate(-1)} />
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
             Profil collaborateur
           </span>
         </div>
 
-        {/* Carte principale compacte */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-5">
+        {/* Carte principale — SANS les actions (déplacées en bas) */}
+        <div className="rounded-2xl border border-slate-200 bg-papier p-5">
+          <div className="flex flex-col items-start gap-5 lg:flex-row lg:items-center">
 
             {/* Avatar */}
-            <div className="shrink-0 relative">
+            <div className="relative shrink-0">
               {profil.photo_url ? (
                 <img
                   src={profil.photo_url}
@@ -98,20 +97,20 @@ export default function ProfilUtilisateur() {
                   className="size-20 rounded-2xl object-cover ring-1 ring-slate-200"
                 />
               ) : (
-                <div className="size-20 rounded-2xl ring-1 ring-slate-200 bg-slate-100 flex items-center justify-center">
+                <div className="flex size-20 items-center justify-center rounded-2xl bg-slate-100 ring-1 ring-slate-200">
                   <span className="text-2xl font-semibold text-slate-600">
                     {profil.prenom?.[0]}{profil.nom?.[0]}
                   </span>
                 </div>
               )}
-              <span className="absolute -bottom-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-white">
+              <span className="absolute -bottom-0.5 -right-0.5 flex size-5 items-center justify-center rounded-full bg-action-600 ring-2 ring-papier">
                 <Check className="size-2.5 text-white" strokeWidth={3} />
               </span>
             </div>
 
             {/* Infos */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                 {profil.prenom} {profil.nom}
               </h1>
 
@@ -120,11 +119,11 @@ export default function ProfilUtilisateur() {
                 <span className="text-sm">{profil.email}</span>
                 <button
                   onClick={copierEmail}
-                  className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+                  className="rounded p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                   aria-label="Copier"
-                  title="Copier l’e-mail"
+                  title="Copier l'e-mail"
                 >
-                  {copie ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                  {copie ? <Check className="size-3 text-blue-600" /> : <Copy className="size-3" />}
                 </button>
               </div>
 
@@ -134,95 +133,51 @@ export default function ProfilUtilisateur() {
                 {profil.service && <Badge icone={Building2} texte={profil.service.nom_service} />}
               </div>
             </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0 w-full lg:w-auto">
-              <button
-                onClick={ouvrirDansMessenger}
-                disabled={ouvertureEnCours}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 transition shadow-sm"
-              >
-                <MessageSquare className="size-4" />
-                {ouvertureEnCours ? 'Ouverture…' : 'Ouvrir dans Messenger'}
-                <ExternalLink className="size-3.5 opacity-80" />
-              </button>
-
-              <a
-                href={`mailto:${profil.email}`}
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition"
-              >
-                <Mail className="size-4" />
-                Envoyer un e-mail
-              </a>
-            </div>
           </div>
         </div>
 
-        {/* 3 cartes égales en pleine largeur */}
-        <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+        {/* 2 cartes côte à côte (Identité + Poste) */}
+        <div className="mt-5 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-2">
           <Carte icone={UserIcon} titre="Identité">
             <Ligne label="Prénom" valeur={profil.prenom} />
             <Ligne label="Nom" valeur={profil.nom} />
             <Ligne label="Adresse e-mail" valeur={profil.email} />
-            <Ligne label="Matricule" valeur={profil.matricule} mono />
           </Carte>
 
           <Carte icone={Briefcase} titre="Poste">
             <Ligne label="Intitulé" valeur={profil.poste?.libelle || '—'} />
             <Ligne label="Service" valeur={profil.service?.nom_service || '—'} />
             <Ligne label="Rôle" valeur={profil.role?.libelle || '—'} />
-            <Ligne label="Statut" valeur="Actif" pastilleVerte />
           </Carte>
+        </div>
 
+        {/* 2 cartes côte à côte (Coordonnées + Actions rapides) */}
+        <div className="mt-5 grid grid-cols-1 items-stretch gap-5 lg:grid-cols-2">
           <Carte icone={MapPin} titre="Coordonnées">
             <LigneContact icone={MapPin} label="Bureau" valeur={profil.service?.nom_service ? `Service ${profil.service.nom_service}` : '—'} />
             <LigneContact icone={Phone} label="Poste interne" valeur="—" />
             <LigneContact icone={Clock} label="Vu" valeur={formaterDateRelative(profil.derniere_connexion)} />
           </Carte>
-        </div>
 
-        {/* Statistiques de collaboration */}
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-                <MessagesSquare className="size-4" />
-              </span>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Collaboration</h3>
-                <p className="text-xs text-slate-500">
-                  Vos échanges avec {profil.prenom}
-                </p>
-              </div>
-            </div>
-
-            {profil.stats?.derniere_interaction && (
-              <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500">
-                <Clock className="size-3.5" />
-                <span>Dernière interaction {formaterDateRelative(profil.stats.derniere_interaction)}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-slate-100">
-            <Stat icone={MessagesSquare} label="Conversations communes" valeur={profil.stats?.conversations ?? 0} />
-            <Stat icone={Send} label="Messages envoyés" valeur={profil.stats?.messages_envoyes ?? 0} />
-            <Stat icone={Inbox} label="Messages reçus" valeur={profil.stats?.messages_recus ?? 0} />
-            <Stat icone={Paperclip} label="Fichiers échangés" valeur={profil.stats?.fichiers_echanges ?? 0} />
-          </div>
-
-          {profil.stats?.conversations === 0 && (
-            <div className="border-t border-slate-100 px-6 py-5 text-center text-sm text-slate-500">
-              Vous n’avez pas encore échangé avec {profil.prenom}.
+          <Carte icone={MessageSquare} titre="Actions rapides">
+            <div className="flex flex-col gap-2 py-1">
               <button
                 onClick={ouvrirDansMessenger}
                 disabled={ouvertureEnCours}
-                className="ml-1 font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-action-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-action-700 disabled:opacity-60"
               >
-                Démarrer la conversation →
+                <MessageSquare className="size-4" />
+                {ouvertureEnCours ? 'Ouverture…' : 'Envoyer un message'}
               </button>
+              <a
+                href={`mailto:${profil.email}`}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-papier px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-300 dark:hover:bg-slate-100"
+              >
+                <Mail className="size-4" />
+                Envoyer un e-mail
+              </a>
             </div>
-          )}
+          </Carte>
         </div>
       </div>
     </div>
@@ -236,9 +191,9 @@ function BoutonRetour({ onClick }) {
   return (
     <button
       onClick={onClick}
-      className="group inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition"
+      className="group inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-papier px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-300 dark:hover:bg-slate-100"
     >
-      <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" />
+      <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
       Retour
     </button>
   )
@@ -249,7 +204,7 @@ function BoutonRetour({ onClick }) {
    ============================================================ */
 function Badge({ icone: Icone, texte }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-200 dark:text-slate-800">
       <Icone className="size-3" />
       {texte}
     </span>
@@ -257,44 +212,30 @@ function Badge({ icone: Icone, texte }) {
 }
 
 /* ============================================================
-   Carte (hauteur 100% pour alignement parfait)
+   Carte
    ============================================================ */
 function Carte({ icone: Icone, titre, children }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 h-full flex flex-col">
-      <div className="flex items-center gap-3 mb-5">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+    <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-papier p-6">
+      <div className="mb-5 flex items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-200 dark:text-slate-700">
           <Icone className="size-4" />
         </span>
         <h3 className="text-base font-bold text-slate-900">{titre}</h3>
       </div>
-      <div className="space-y-0 flex-1">{children}</div>
+      <div className="flex-1">{children}</div>
     </div>
   )
 }
 
 /* ============================================================
-   Ligne : label gauche (largeur fixe) / valeur gauche alignée
+   Ligne
    ============================================================ */
-function Ligne({ label, valeur, mono, pastilleVerte }) {
-  // Pastille verte (statut Actif)
-  if (pastilleVerte) {
-    return (
-      <div className="flex items-center gap-3 py-2.5 border-b border-slate-100 last:border-0">
-        <span className="w-32 shrink-0 text-sm text-slate-600">{label}</span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-          <span className="size-1.5 rounded-full bg-emerald-500"></span>
-          {valeur}
-        </span>
-      </div>
-    )
-  }
-
-  // Ligne standard
+function Ligne({ label, valeur, mono }) {
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-slate-100 last:border-0">
+    <div className="flex items-center gap-3 border-b border-slate-100 py-2.5 last:border-0 dark:border-slate-200">
       <span className="w-32 shrink-0 text-sm text-slate-600">{label}</span>
-      <span className={`text-sm font-semibold text-slate-900 truncate ${mono ? 'font-mono' : ''}`}>
+      <span className={`truncate text-sm font-semibold text-slate-900 ${mono ? 'font-mono' : ''}`}>
         {valeur}
       </span>
     </div>
@@ -302,39 +243,18 @@ function Ligne({ label, valeur, mono, pastilleVerte }) {
 }
 
 /* ============================================================
-   Ligne contact (icône + label + valeur)
+   Ligne contact
    ============================================================ */
 function LigneContact({ icone: Icone, label, valeur }) {
   return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-slate-100 last:border-0">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+    <div className="flex items-center gap-3 border-b border-slate-100 py-2.5 last:border-0 dark:border-slate-200">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-200 dark:text-slate-600">
         <Icone className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-        <p className="text-sm font-semibold text-slate-900 truncate">{valeur}</p>
+        <p className="truncate text-sm font-semibold text-slate-900">{valeur}</p>
       </div>
-    </div>
-  )
-}
-
-/* ============================================================
-   Statistique
-   ============================================================ */
-function Stat({ icone: Icone, label, valeur }) {
-  return (
-    <div className="p-6">
-      <div className="flex items-center gap-3 mb-3">
-        <span className="flex size-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-          <Icone className="size-5" />
-        </span>
-        <p className="text-3xl font-bold text-slate-900 tracking-tight leading-none">
-          {valeur}
-        </p>
-      </div>
-      <p className="text-xs font-medium text-slate-500 leading-tight">
-        {label}
-      </p>
     </div>
   )
 }

@@ -51,17 +51,34 @@ const LIBELLES = {
 }
 
 /**
- * Style selon le niveau (kernel-like).
- * 3 = CRIT rouge vif
- * 4 = WARNING orange
- * 5 = NOTICE jaune
- * 6 = INFO bleu
+ * Styles par niveau — 100% thémés avec variantes dark.
+ * 3 = CRITIQUE (rouge) / 4 = ALERTE (orange) / 5 = IMPORTANT (mangue) / 6 = INFO (bleu)
  */
 const STYLES_NIVEAU = {
-  3: { bg: 'bg-red-50/60', icone: 'bg-red-100 text-red-700', badge: 'bg-red-600 text-white', label: 'CRITIQUE' },
-  4: { bg: 'bg-orange-50/50', icone: 'bg-orange-100 text-orange-700', badge: 'bg-orange-500 text-white', label: 'ALERTE' },
-  5: { bg: '', icone: 'bg-amber-50 text-amber-700', badge: 'bg-amber-100 text-amber-800', label: 'IMPORTANT' },
-  6: { bg: '', icone: 'bg-blue-50 text-blue-700', badge: 'bg-blue-100 text-blue-800', label: 'INFO' },
+  3: {
+    bg: 'bg-red-50/60 dark:bg-red-500/10',
+    icone: 'bg-red-100 text-red-700 dark:bg-red-400/20 dark:text-red-300',
+    badge: 'bg-red-600 text-white dark:bg-red-500',
+    label: 'CRITIQUE',
+  },
+  4: {
+    bg: 'bg-mangue-300/20 dark:bg-mangue-400/10',
+    icone: 'bg-mangue-300/40 text-mangue-500 dark:bg-mangue-400/20 dark:text-mangue-400',
+    badge: 'bg-mangue-500 text-white dark:bg-mangue-400',
+    label: 'ALERTE',
+  },
+  5: {
+    bg: '',
+    icone: 'bg-mangue-300/30 text-mangue-500 dark:bg-mangue-400/15 dark:text-mangue-400',
+    badge: 'bg-mangue-300/60 text-mangue-500 dark:bg-mangue-400/20 dark:text-mangue-400',
+    label: 'IMPORTANT',
+  },
+  6: {
+    bg: '',
+    icone: 'bg-blue-50 text-blue-700 dark:bg-blue-100 dark:text-blue-800',
+    badge: 'bg-blue-100 text-blue-800 dark:bg-blue-100 dark:text-blue-800',
+    label: 'INFO',
+  },
 }
 
 const PERIODES = [
@@ -70,6 +87,10 @@ const PERIODES = [
   { value: '30j', label: '30 derniers jours' },
   { value: 'tout', label: 'Tout' },
 ]
+
+const CONTOUR = 'border-slate-200 dark:border-slate-300'
+const CLASSE_CHAMP =
+  'w-full rounded-lg border bg-papier px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
 
 export default function AdminAudit() {
   const [logs, setLogs] = useState([])
@@ -126,30 +147,30 @@ export default function AdminAudit() {
 
       {/* Alerte brute force */}
       {nbBruteForce > 0 && (
-        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-5 dark:border-red-500/40 dark:bg-red-500/10">
           <div className="flex items-start gap-4">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-red-600 text-white dark:bg-red-500">
               <Flame className="size-6" />
             </span>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-red-900">
+                <h3 className="font-semibold text-red-900 dark:text-red-200">
                   Tentative d’intrusion détectée
                 </h3>
-                <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">
+                <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white dark:bg-red-500">
                   {nbBruteForce} IP{nbBruteForce > 1 ? 's' : ''}
                 </span>
               </div>
-              <p className="mt-1 text-sm text-red-700">
+              <p className="mt-1 text-sm text-red-700 dark:text-red-300">
                 Une ou plusieurs adresses IP ont effectué plusieurs échecs de connexion consécutifs.
                 Cela peut indiquer une attaque par force brute.
               </p>
               <ul className="mt-3 space-y-1 text-sm">
                 {alertes.brute_force.map((a) => (
-                  <li key={a.adresse_ip} className="flex items-center gap-2 text-red-800">
+                  <li key={a.adresse_ip} className="flex items-center gap-2 text-red-800 dark:text-red-300">
                     <AlertOctagon className="size-4" />
                     <span className="font-mono">{a.adresse_ip}</span>
-                    <span className="text-red-600">— {a.tentatives} tentatives</span>
+                    <span className="text-red-600 dark:text-red-400">— {a.tentatives} tentatives</span>
                   </li>
                 ))}
               </ul>
@@ -176,7 +197,7 @@ export default function AdminAudit() {
           icone={ShieldAlert}
           titre="Échecs connexion (24h)"
           valeur={stats.echecs_24h}
-          couleur={stats.echecs_24h >= 5 ? 'from-red-500 to-red-600' : 'from-orange-400 to-orange-500'}
+          couleur={stats.echecs_24h >= 5 ? 'from-red-500 to-red-600' : 'from-mangue-400 to-mangue-500'}
           alerte={stats.echecs_24h >= 5}
         />
       </div>
@@ -184,43 +205,41 @@ export default function AdminAudit() {
       {/* Filtres */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="relative sm:col-span-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
             placeholder="Rechercher…"
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm
-                       focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className={`${CLASSE_CHAMP} ${CONTOUR} pl-10 pr-4`}
           />
         </div>
 
         <select
           value={periode}
           onChange={(e) => setPeriode(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+          className={`${CLASSE_CHAMP} ${CONTOUR}`}
         >
           {PERIODES.map((p) => (
             <option key={p.value} value={p.value}>{p.label}</option>
           ))}
         </select>
 
-        <label className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm cursor-pointer hover:bg-slate-50">
+        <label className={`flex cursor-pointer items-center gap-2 rounded-lg border bg-papier px-3.5 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-100 ${CONTOUR}`}>
           <input
             type="checkbox"
             checked={inclureConnexions}
             onChange={(e) => setInclureConnexions(e.target.checked)}
-            className="rounded border-slate-300"
+            className="rounded border-slate-300 accent-action-600"
           />
           <span className="text-slate-700">Afficher les connexions réussies</span>
         </label>
       </div>
 
-      {/* Info sur le filtrage */}
+      {/* Info filtrage */}
       {!inclureConnexions && (
         <div className="flex items-start gap-2 text-xs text-slate-500">
-          <Info className="size-4 mt-0.5 shrink-0" />
+          <Info className="mt-0.5 size-4 shrink-0" />
           <p>
             Par défaut, les connexions réussies (niveau INFO) sont masquées pour réduire le bruit.
             Cochez la case ci-dessus pour les afficher.
@@ -229,7 +248,7 @@ export default function AdminAudit() {
       )}
 
       {/* Liste */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-papier dark:border-slate-300">
         {chargement ? (
           <Chargement />
         ) : logs.length === 0 ? (
@@ -239,13 +258,13 @@ export default function AdminAudit() {
               : 'Aucune action enregistrée pour cette période.'}
           </EtatVide>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-200">
             {groupes.map(({ jour, label, entrees }) => (
               <div key={jour}>
-                <div className="sticky top-0 z-10 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-100">
+                <div className="sticky top-0 z-10 border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-200 dark:bg-slate-100">
                   {label}
                 </div>
-                <div className="divide-y divide-slate-50">
+                <div className="divide-y divide-slate-50 dark:divide-slate-200">
                   {entrees.map((log) => (
                     <LigneAudit key={log.reference_audit} log={log} />
                   ))}
@@ -256,7 +275,7 @@ export default function AdminAudit() {
         )}
 
         {meta.derniere_page > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
+          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-300">
             <span>
               {meta.total} événement{meta.total > 1 ? 's' : ''} · page {meta.page} / {meta.derniere_page}
             </span>
@@ -290,8 +309,8 @@ function LigneAudit({ log }) {
   const u = log.utilisateur
 
   return (
-    <div className={`flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors ${style.bg}`}>
-      <span className="w-12 shrink-0 pt-0.5 text-xs font-medium text-slate-400 tabular-nums">
+    <div className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-100 ${style.bg}`}>
+      <span className="w-12 shrink-0 pt-0.5 text-xs font-medium tabular-nums text-slate-400">
         {heure}
       </span>
 
@@ -305,13 +324,13 @@ function LigneAudit({ log }) {
 
           {log.niveau <= 4 && (
             <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${style.badge}`}>
-              {log.brute_force && <Flame className="inline size-3 mr-0.5" />}
+              {log.brute_force && <Flame className="mr-0.5 inline size-3" />}
               {style.label}
             </span>
           )}
 
           {log.brute_force && (
-            <span className="text-xs font-semibold text-red-700">
+            <span className="text-xs font-semibold text-red-700 dark:text-red-400">
               Force brute suspectée
             </span>
           )}
@@ -331,14 +350,14 @@ function LigneAudit({ log }) {
           {log.details_action && (
             <>
               <span className="text-slate-300">·</span>
-              <span className="truncate max-w-md">{log.details_action}</span>
+              <span className="max-w-md truncate">{log.details_action}</span>
             </>
           )}
 
           {log.adresse_ip && (
             <>
               <span className="text-slate-300">·</span>
-              <span className={`font-mono ${log.brute_force ? 'text-red-600 font-semibold' : 'text-slate-400'}`}>
+              <span className={`font-mono ${log.brute_force ? 'font-semibold text-red-600 dark:text-red-400' : 'text-slate-400'}`}>
                 {log.adresse_ip}
               </span>
             </>
@@ -351,15 +370,17 @@ function LigneAudit({ log }) {
 
 function CarteStat({ icone: Icone, titre, valeur, couleur, alerte }) {
   return (
-    <div className={`flex items-center gap-4 rounded-2xl border bg-white p-5 ${
-      alerte ? 'border-red-300 ring-2 ring-red-100' : 'border-slate-200'
+    <div className={`flex items-center gap-4 rounded-2xl border bg-papier p-5 ${
+      alerte
+        ? 'border-red-300 ring-2 ring-red-100 dark:border-red-500/40 dark:ring-red-500/20'
+        : 'border-slate-200 dark:border-slate-300'
     }`}>
       <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${couleur} text-white shadow-sm`}>
         <Icone className="size-5" />
       </span>
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{titre}</p>
-        <p className={`text-2xl font-bold ${alerte ? 'text-red-700' : 'text-slate-900'}`}>
+        <p className={`text-2xl font-bold ${alerte ? 'text-red-700 dark:text-red-400' : 'text-slate-900'}`}>
           {valeur}
         </p>
       </div>

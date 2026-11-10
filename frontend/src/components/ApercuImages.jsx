@@ -2,9 +2,15 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Download } from 'lucide-react'
 
+/* ============================================================
+   Constantes
+   ============================================================ */
 const EXT_IMAGES = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp']
 const MIME_IMAGES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp']
 
+/* ============================================================
+   Helpers
+   ============================================================ */
 export function estImage(f) {
   if (!f) return false
   const nom = (f.nom_original || '').toLowerCase()
@@ -19,36 +25,43 @@ export function formaterTaille(o) {
   return `${(o / (1024 * 1024)).toFixed(1)} Mo`
 }
 
-/** Extension en majuscules (PDF, XLSX…) pour reconnaître le type d'un coup d'œil. */
 function typeDuFichier(nom) {
   const n = nom || ''
   return n.includes('.') ? n.split('.').pop().toUpperCase() : 'FICHIER'
 }
 
+/** URL à utiliser : url_preview (signée) sinon fallback sur /api/fichiers/{ref} */
+function urlDuFichier(fichier) {
+  return fichier.url_preview || `/api/fichiers/${fichier.reference_fichier}`
+}
+
 /* ============================================================
-   Aperçu d'une image : bouton ⬇ et taille toujours visibles,
-   clic ou Entrée pour agrandir, Échap pour fermer
+   Aperçu d'une image : miniature + bouton télécharger + zoom
    ============================================================ */
 function ApercuImage({ fichier }) {
   const [zoom, setZoom] = useState(false)
   const [erreur, setErreur] = useState(false)
-  const src = `/api/fichiers/${fichier.reference_fichier}`
+  const src = urlDuFichier(fichier)
 
   // Échap ferme l'image agrandie
   useEffect(() => {
     if (!zoom) return
-    const surTouche = (e) => { if (e.key === 'Escape') setZoom(false) }
+    const surTouche = (e) => {
+      if (e.key === 'Escape') setZoom(false)
+    }
     document.addEventListener('keydown', surTouche)
     return () => document.removeEventListener('keydown', surTouche)
   }, [zoom])
 
-  // Image introuvable ou refusée : on retombe sur la carte de téléchargement
-  if (erreur) return <ApercuFichier fichier={fichier} moi={false} />
+  // Image introuvable ou pas d'URL → fallback carte de téléchargement
+  if (erreur || !fichier.url_preview) {
+    return <ApercuFichier fichier={fichier} moi={false} />
+  }
 
   return (
     <>
-      <div className="group relative inline-block max-w-full overflow-hidden rounded-xl bg-black/5">
-        {/* Image contrainte à 260×260 max, ouverte par un vrai bouton (accessible au clavier) */}
+      {/* ---- Miniature dans la bulle ---- */}
+      <div className="group relative inline-block max-w-full overflow-hidden rounded-xl bg-black/5 ring-1 ring-slate-200 dark:ring-slate-300">
         <button
           type="button"
           onClick={() => setZoom(true)}
@@ -75,7 +88,7 @@ function ApercuImage({ fichier }) {
           href={src}
           download
           onClick={(e) => e.stopPropagation()}
-          className="absolute left-2 top-2 z-10 flex size-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white"
+          className="absolute left-2 top-2 z-10 flex size-8 items-center justify-center rounded-full bg-black/60 text-white ring-1 ring-white/20 backdrop-blur-sm transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white"
           title="Télécharger"
           aria-label={`Télécharger ${fichier.nom_original}`}
         >
@@ -83,7 +96,7 @@ function ApercuImage({ fichier }) {
         </a>
 
         {/* Taille (toujours visible, sous le bouton) */}
-        <div className="pointer-events-none absolute left-2 top-[42px] z-10 rounded-md bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
+        <div className="pointer-events-none absolute left-2 top-[42px] z-10 rounded-md bg-black/60 px-1.5 py-0.5 ring-1 ring-white/10 backdrop-blur-sm">
           <p className="text-[11px] font-medium leading-tight text-white">
             {formaterTaille(fichier.taille)}
           </p>
@@ -97,7 +110,7 @@ function ApercuImage({ fichier }) {
         </div>
       </div>
 
-      {/* Image agrandie */}
+      {/* ---- Modale d'agrandissement ---- */}
       <AnimatePresence>
         {zoom && (
           <motion.div
@@ -108,15 +121,16 @@ function ApercuImage({ fichier }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 p-4"
+            className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95 p-4"
             onClick={() => setZoom(false)}
           >
-            <div className="absolute right-4 top-4 flex gap-2">
+            {/* Boutons en haut à droite, hors du flux flex pour ne pas décaler l'image */}
+            <div className="absolute right-4 top-4 z-10 flex gap-2">
               <a
                 href={src}
                 download
                 onClick={(e) => e.stopPropagation()}
-                className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition hover:bg-white/20"
+                className="flex size-10 items-center justify-center rounded-full bg-black/60 text-white ring-1 ring-white/20 backdrop-blur transition hover:bg-black/80"
                 title="Télécharger"
                 aria-label={`Télécharger ${fichier.nom_original}`}
               >
@@ -125,14 +139,19 @@ function ApercuImage({ fichier }) {
               <button
                 type="button"
                 autoFocus
-                onClick={() => setZoom(false)}
-                className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition hover:bg-white/20"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setZoom(false)
+                }}
+                className="flex size-10 items-center justify-center rounded-full bg-black/60 text-white ring-1 ring-white/20 backdrop-blur transition hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-white"
                 title="Fermer (Échap)"
                 aria-label="Fermer l'aperçu"
               >
                 <X className="size-5" />
               </button>
             </div>
+
+            {/* Image centrée */}
             <motion.img
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -143,7 +162,9 @@ function ApercuImage({ fichier }) {
               onClick={(e) => e.stopPropagation()}
               className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
             />
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-4 py-1.5 text-xs text-white backdrop-blur">
+
+            {/* Légende en bas */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-4 py-1.5 text-xs text-white ring-1 ring-white/10 backdrop-blur">
               {fichier.nom_original} · {formaterTaille(fichier.taille)}
             </div>
           </motion.div>
@@ -154,24 +175,23 @@ function ApercuImage({ fichier }) {
 }
 
 /* ============================================================
-   Aperçu d'un fichier non-image : carte blanche avec contour,
-   lisible aussi bien dans une bulle envoyée (lagon pâle) que reçue (blanche)
+   Aperçu d'un fichier non-image : carte de téléchargement
    ============================================================ */
 function ApercuFichier({ fichier, moi }) {
-  const src = `/api/fichiers/${fichier.reference_fichier}`
+  const src = urlDuFichier(fichier)
 
   return (
     <a
       href={src}
       download
       aria-label={`Télécharger ${fichier.nom_original}`}
-      className={`group flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 shadow-sm ring-1 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
+      className={`group flex items-center gap-3 rounded-xl bg-papier px-3 py-2.5 shadow-sm ring-1 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
         moi
-          ? 'ring-indigo-300 hover:bg-indigo-50'
-          : 'ring-slate-300 hover:bg-slate-50'
+          ? 'ring-blue-300 hover:bg-blue-50 dark:ring-blue-400/40 dark:hover:bg-blue-400/10'
+          : 'ring-slate-200 hover:bg-slate-50 dark:ring-slate-300 dark:hover:bg-slate-100'
       }`}
     >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition group-hover:bg-blue-700">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-action-600 text-white transition group-hover:bg-action-700">
         <Download className="size-4" />
       </span>
 
@@ -179,7 +199,7 @@ function ApercuFichier({ fichier, moi }) {
         <span className="block truncate text-sm font-medium text-slate-900">
           {fichier.nom_original}
         </span>
-        <span className="block text-xs text-slate-600">
+        <span className="block text-xs text-slate-500">
           {typeDuFichier(fichier.nom_original)}
           {fichier.taille ? ` · ${formaterTaille(fichier.taille)}` : ''}
         </span>
@@ -189,7 +209,7 @@ function ApercuFichier({ fichier, moi }) {
 }
 
 /* ============================================================
-   Conteneur
+   Conteneur : images et fichiers dans une bulle
    ============================================================ */
 export default function ApercuImages({ fichiers, moi }) {
   if (!fichiers || fichiers.length === 0) return null
@@ -199,6 +219,7 @@ export default function ApercuImages({ fichiers, moi }) {
 
   return (
     <div className="mt-2 space-y-2">
+      {/* Images */}
       {images.length > 0 && (
         <div className={`flex flex-wrap gap-2 ${moi ? 'justify-end' : 'justify-start'}`}>
           {images.map((f) => (
@@ -206,6 +227,8 @@ export default function ApercuImages({ fichiers, moi }) {
           ))}
         </div>
       )}
+
+      {/* Fichiers non-images */}
       {autres.length > 0 && (
         <ul className="space-y-1.5">
           {autres.map((f) => (

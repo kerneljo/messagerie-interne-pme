@@ -5,6 +5,10 @@ import useDebounce from '../../useDebounce'
 import { Bouton, Chargement, EtatVide } from '../../components/ui'
 import ConfirmationModal from '../../components/ConfirmationModal'
 
+const CONTOUR = 'border-slate-200 dark:border-slate-300'
+const CLASSE_CHAMP =
+  'w-full rounded-lg border bg-papier px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+
 export default function AdminServices() {
   const [services, setServices] = useState([])
   const [chargement, setChargement] = useState(true)
@@ -56,18 +60,17 @@ export default function AdminServices() {
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+        <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
           placeholder="Rechercher un service…"
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+          className={`${CLASSE_CHAMP} ${CONTOUR} pl-10 pr-4`}
         />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-papier dark:border-slate-300">
         {chargement ? (
           <Chargement />
         ) : services.length === 0 ? (
@@ -77,19 +80,19 @@ export default function AdminServices() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-100">
                 <tr>
                   <th className="px-4 py-3">Nom du service</th>
                   <th className="px-4 py-3 text-center">Utilisateurs</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-200">
                 {services.map((s) => (
-                  <tr key={s.code_service} className="hover:bg-slate-50">
+                  <tr key={s.code_service} className="hover:bg-slate-50 dark:hover:bg-slate-100">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="flex size-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                        <span className="flex size-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-200 dark:text-slate-700">
                           <Building2 className="size-4" />
                         </span>
                         <span className="font-medium text-slate-900">{s.nom_service}</span>
@@ -102,7 +105,7 @@ export default function AdminServices() {
                       <div className="flex justify-end gap-1">
                         <button
                           onClick={() => { setServiceEdite(s); setModalOuverte(true) }}
-                          className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                          className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-200"
                           aria-label="Modifier"
                           title="Modifier"
                         >
@@ -112,8 +115,7 @@ export default function AdminServices() {
                           onClick={() => setConfirmation(s)}
                           disabled={(s.utilisateurs_count ?? 0) > 0}
                           title={(s.utilisateurs_count ?? 0) > 0 ? 'Service utilisé par des utilisateurs' : 'Supprimer'}
-                          className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600
-                                     disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-red-500/15"
                           aria-label="Supprimer"
                         >
                           <Trash2 className="size-4" />
@@ -175,20 +177,24 @@ function ModalService({ service, onFermer, onEnregistre }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/50" onClick={onFermer} />
-      <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+      <div className="absolute inset-0 bg-slate-900/50 dark:bg-black/70" onClick={onFermer} />
+      <div className="relative z-10 w-full max-w-md rounded-2xl bg-papier shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-200">
           <h3 className="text-lg font-semibold text-slate-900">
             {service ? 'Modifier le service' : 'Nouveau service'}
           </h3>
-          <button onClick={onFermer} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Fermer">
+          <button
+            onClick={onFermer}
+            className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-200"
+            aria-label="Fermer"
+          >
             <X className="size-5" />
           </button>
         </div>
 
-        <form onSubmit={soumettre} className="px-6 py-5 space-y-4">
+        <form onSubmit={soumettre} className="space-y-4 px-6 py-5">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
               Nom du service *
             </label>
             <input
@@ -198,28 +204,27 @@ function ModalService({ service, onFermer, onEnregistre }) {
               required
               autoFocus
               placeholder="Ex : Marketing, Comptabilité…"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className={`${CLASSE_CHAMP} ${CONTOUR}`}
             />
           </div>
 
           {erreur && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
-              <AlertTriangle className="size-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-700">{erreur}</p>
+            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-500/30 dark:bg-red-500/15">
+              <AlertTriangle className="mt-0.5 size-4 flex-shrink-0 text-red-500 dark:text-red-400" />
+              <p className="text-sm text-red-700 dark:text-red-300">{erreur}</p>
             </div>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button" onClick={onFermer} disabled={envoi}
-              className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className={`rounded-lg border px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:hover:bg-slate-100 ${CONTOUR}`}
             >
               Annuler
             </button>
             <button
               type="submit" disabled={envoi}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+              className="rounded-lg bg-action-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-700 disabled:opacity-60"
             >
               {envoi ? '…' : service ? 'Enregistrer' : 'Créer'}
             </button>

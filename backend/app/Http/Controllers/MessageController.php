@@ -18,6 +18,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -361,6 +362,13 @@ class MessageController extends Controller
                 'nom_original' => $f->nom_original,
                 'type_mime' => $f->type_mime,
                 'taille' => $f->taille,
+                'url_preview' => str_starts_with($f->type_mime, 'image/')
+                    ? URL::temporarySignedRoute(
+                        'fichiers.preview',
+                        now()->addHour(),
+                        ['fichier' => $f->reference_fichier]
+                    )
+                    : null,
             ])->values(),
             'lu_par_moi' => (bool) ($m->lu_par_moi ?? false),
             'nb_lecteurs' => (int) ($m->lecteurs_count ?? 0),

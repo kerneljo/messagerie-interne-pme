@@ -14,6 +14,10 @@ const ROLES_VIDE = []
 const SERVICES_VIDE = []
 const POSTES_VIDE = []
 
+const CONTOUR = 'border-slate-200 dark:border-slate-300'
+const CLASSE_CHAMP =
+  'w-full rounded-lg border px-3.5 py-2.5 text-sm bg-papier text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+
 export default function AdminUtilisateurs() {
   const { utilisateur: moi } = useAuth()
 
@@ -26,7 +30,6 @@ export default function AdminUtilisateurs() {
   const [services, setServices] = useState(SERVICES_VIDE)
   const [postes, setPostes] = useState(POSTES_VIDE)
 
-  // Filtres
   const [recherche, setRecherche] = useState('')
   const [filtreRole, setFiltreRole] = useState('')
   const [filtreService, setFiltreService] = useState('')
@@ -34,11 +37,9 @@ export default function AdminUtilisateurs() {
   const [page, setPage] = useState(1)
   const rechercheDebouncee = useDebounce(recherche, 300)
 
-  // Modales
-  const [modalEdition, setModalEdition] = useState(null)   // user ou 'nouveau'
-  const [confirmation, setConfirmation] = useState(null)   // { user, action }
+  const [modalEdition, setModalEdition] = useState(null)
+  const [confirmation, setConfirmation] = useState(null)
 
-  // Charge les référentiels une fois
   useEffect(() => {
     Promise.all([
       api.get('/api/roles').catch(() => ({ data: [] })),
@@ -51,7 +52,6 @@ export default function AdminUtilisateurs() {
     })
   }, [])
 
-  // Charge les utilisateurs
   async function charger() {
     setChargement(true)
     try {
@@ -74,8 +74,6 @@ export default function AdminUtilisateurs() {
   }
 
   useEffect(() => { charger() }, [rechercheDebouncee, filtreRole, filtreService, filtreStatut, page])
-
-  // Reset page quand filtres changent
   useEffect(() => { setPage(1) }, [rechercheDebouncee, filtreRole, filtreService, filtreStatut])
 
   async function confirmerAction() {
@@ -107,7 +105,7 @@ export default function AdminUtilisateurs() {
           <p className="mt-1 text-sm text-slate-500">
             {stats.total} comptes · {stats.actifs} actifs ·{' '}
             {stats.en_attente > 0 && (
-              <span className="text-amber-600 font-medium">
+              <span className="font-medium text-mangue-500 dark:text-mangue-400">
                 {stats.en_attente} en attente ·{' '}
               </span>
             )}
@@ -123,22 +121,20 @@ export default function AdminUtilisateurs() {
       {/* Filtres */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
             placeholder="Rechercher…"
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm
-                       focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            className={`${CLASSE_CHAMP} ${CONTOUR} pl-10 pr-4`}
           />
         </div>
 
         <select
           value={filtreRole}
           onChange={(e) => setFiltreRole(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+          className={`${CLASSE_CHAMP} ${CONTOUR}`}
         >
           <option value="">Tous les rôles</option>
           {roles.map((r) => (
@@ -149,8 +145,7 @@ export default function AdminUtilisateurs() {
         <select
           value={filtreService}
           onChange={(e) => setFiltreService(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+          className={`${CLASSE_CHAMP} ${CONTOUR}`}
         >
           <option value="">Tous les services</option>
           {services.map((s) => (
@@ -161,8 +156,7 @@ export default function AdminUtilisateurs() {
         <select
           value={filtreStatut}
           onChange={(e) => setFiltreStatut(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm
-                     focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+          className={`${CLASSE_CHAMP} ${CONTOUR}`}
         >
           <option value="">Tous les statuts</option>
           <option value="actif">Actif</option>
@@ -175,19 +169,18 @@ export default function AdminUtilisateurs() {
       {stats.en_attente > 0 && filtreStatut !== 'en_attente' && (
         <button
           onClick={() => setFiltreStatut('en_attente')}
-          className="flex items-center gap-2 w-full px-4 py-3 rounded-xl bg-amber-50 border border-amber-200
-                     text-sm text-amber-800 hover:bg-amber-100 transition-colors"
+          className="flex w-full items-center gap-2 rounded-xl border border-mangue-400/40 bg-mangue-300/30 px-4 py-3 text-sm text-slate-800 transition hover:bg-mangue-300/50 dark:border-mangue-400/30 dark:bg-mangue-400/10 dark:text-mangue-300 dark:hover:bg-mangue-400/20"
         >
           <AlertTriangle className="size-4 flex-shrink-0" />
           <span>
             <strong>{stats.en_attente}</strong> compte{stats.en_attente > 1 ? 's' : ''} en attente de validation
           </span>
-          <span className="ml-auto text-xs text-amber-600">Cliquez pour filtrer →</span>
+          <span className="ml-auto text-xs opacity-70">Cliquez pour filtrer →</span>
         </button>
       )}
 
       {/* Tableau */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-papier">
         {chargement ? (
           <Chargement />
         ) : utilisateurs.length === 0 ? (
@@ -201,44 +194,44 @@ export default function AdminUtilisateurs() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-100">
                 <tr>
                   <th className="px-4 py-3">Utilisateur</th>
-                  <th className="px-4 py-3 hidden md:table-cell">Poste</th>
-                  <th className="px-4 py-3 hidden lg:table-cell">Service</th>
-                  <th className="px-4 py-3 hidden lg:table-cell">Rôle</th>
+                  <th className="hidden px-4 py-3 md:table-cell">Poste</th>
+                  <th className="hidden px-4 py-3 lg:table-cell">Service</th>
+                  <th className="hidden px-4 py-3 lg:table-cell">Rôle</th>
                   <th className="px-4 py-3 text-center">Statut</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-200">
                 {utilisateurs.map((u) => {
                   const estMoi = u.matricule === moi?.matricule
                   return (
-                    <tr key={u.matricule} className="hover:bg-slate-50">
+                    <tr key={u.matricule} className="hover:bg-slate-50 dark:hover:bg-slate-100">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Avatar prenom={u.prenom} nom={u.nom} taille="sm" />
                           <div className="min-w-0">
-                            <p className="font-medium text-slate-900 truncate">
+                            <p className="truncate font-medium text-slate-900">
                               {u.prenom} {u.nom}
                               {estMoi && <span className="ml-2 text-xs text-slate-400">(vous)</span>}
                             </p>
-                            <p className="text-xs text-slate-500 truncate">{u.email}</p>
+                            <p className="truncate text-xs text-slate-500">{u.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 hidden md:table-cell text-slate-600">
+                      <td className="hidden px-4 py-3 text-slate-600 md:table-cell">
                         {u.poste?.libelle || '—'}
                       </td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-slate-600">
+                      <td className="hidden px-4 py-3 text-slate-600 lg:table-cell">
                         {u.service?.nom_service || '—'}
                       </td>
-                      <td className="px-4 py-3 hidden lg:table-cell">
-                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+                      <td className="hidden px-4 py-3 lg:table-cell">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                           u.role?.libelle === 'Administrateur'
-                            ? 'bg-violet-100 text-violet-700'
-                            : 'bg-slate-100 text-slate-600'
+                            ? 'bg-violet-100 text-violet-700 dark:bg-violet-100 dark:text-violet-800'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-200 dark:text-slate-700'
                         }`}>
                           {u.role?.libelle || '—'}
                         </span>
@@ -250,7 +243,7 @@ export default function AdminUtilisateurs() {
                         <div className="flex justify-end gap-1">
                           <button
                             onClick={() => setModalEdition(u)}
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-200"
                             aria-label="Modifier"
                             title="Modifier"
                           >
@@ -261,7 +254,7 @@ export default function AdminUtilisateurs() {
                             <>
                               <button
                                 onClick={() => setConfirmation({ user: u, action: 'valider' })}
-                                className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                                className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-100"
                                 aria-label="Valider"
                                 title="Valider le compte"
                               >
@@ -269,7 +262,7 @@ export default function AdminUtilisateurs() {
                               </button>
                               <button
                                 onClick={() => setConfirmation({ user: u, action: 'refuser' })}
-                                className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                className="rounded-lg p-2 text-red-500 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/15"
                                 aria-label="Refuser"
                                 title="Refuser le compte"
                               >
@@ -282,7 +275,7 @@ export default function AdminUtilisateurs() {
                             <button
                               onClick={() => setConfirmation({ user: u, action: 'desactiver' })}
                               disabled={estMoi}
-                              className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              className="rounded-lg p-2 text-slate-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-red-500/15"
                               aria-label="Désactiver"
                               title={estMoi ? 'Vous ne pouvez pas vous désactiver' : 'Désactiver'}
                             >
@@ -293,7 +286,7 @@ export default function AdminUtilisateurs() {
                           {u.statut_compte === 'desactive' && (
                             <button
                               onClick={() => setConfirmation({ user: u, action: 'reactiver' })}
-                              className="rounded-lg p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600"
+                              className="rounded-lg p-2 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-100"
                               aria-label="Réactiver"
                               title="Réactiver"
                             >
@@ -312,7 +305,7 @@ export default function AdminUtilisateurs() {
 
         {/* Pagination */}
         {meta.derniere_page > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
+          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm text-slate-600 dark:border-slate-300">
             <span>
               {meta.total} résultat{meta.total > 1 ? 's' : ''} · page {meta.page} / {meta.derniere_page}
             </span>
@@ -341,7 +334,7 @@ export default function AdminUtilisateurs() {
         />
       )}
 
-      {/* Confirmation valider / refuser / désactiver / réactiver */}
+      {/* Confirmation */}
       {confirmation && (() => {
         const config = {
           desactiver: {
@@ -392,13 +385,22 @@ export default function AdminUtilisateurs() {
    ============================================================ */
 function BadgeStatut({ statut }) {
   const config = {
-    actif:      { classe: 'bg-emerald-100 text-emerald-700', libelle: 'Actif' },
-    en_attente: { classe: 'bg-amber-100 text-amber-700',     libelle: 'En attente' },
-    desactive:  { classe: 'bg-red-100 text-red-700',         libelle: 'Désactivé' },
+    actif: {
+      classe: 'bg-blue-100 text-blue-700 dark:bg-blue-100 dark:text-blue-800',
+      libelle: 'Actif',
+    },
+    en_attente: {
+      classe: 'bg-mangue-300/40 text-mangue-500 dark:bg-mangue-400/20 dark:text-mangue-400',
+      libelle: 'En attente',
+    },
+    desactive: {
+      classe: 'bg-red-100 text-red-700 dark:bg-red-400/15 dark:text-red-300',
+      libelle: 'Désactivé',
+    },
   }
-  const c = config[statut] || { classe: 'bg-slate-100 text-slate-600', libelle: statut || '—' }
+  const c = config[statut] || { classe: 'bg-slate-100 text-slate-600 dark:bg-slate-200 dark:text-slate-700', libelle: statut || '—' }
   return (
-    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${c.classe}`}>
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${c.classe}`}>
       {c.libelle}
     </span>
   )
@@ -454,34 +456,35 @@ function ModalUtilisateur({ utilisateur, roles, services, postes, moiMeme, onFer
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/50" onClick={onFermer} />
-      <div className="relative z-10 w-full max-w-xl rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="absolute inset-0 bg-slate-900/50 dark:bg-black/70" onClick={onFermer} />
+      <div className="relative z-10 max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-papier shadow-2xl">
         {/* En-tête */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 sticky top-0 bg-white rounded-t-2xl">
+        <div className="sticky top-0 flex items-center justify-between rounded-t-2xl border-b border-slate-100 bg-papier px-6 py-4 dark:border-slate-200">
           <h3 className="text-lg font-semibold text-slate-900">
-            {estEdition ? 'Modifier l’utilisateur' : 'Nouvel utilisateur'}
+            {estEdition ? "Modifier l'utilisateur" : 'Nouvel utilisateur'}
           </h3>
-          <button onClick={onFermer} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Fermer">
+          <button
+            onClick={onFermer}
+            className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-200"
+            aria-label="Fermer"
+          >
             <X className="size-5" />
           </button>
         </div>
 
         {/* Formulaire */}
-        <form onSubmit={soumettre} className="px-6 py-5 space-y-4">
-          {/* Prénom + Nom */}
+        <form onSubmit={soumettre} className="space-y-4 px-6 py-5">
           <div className="grid grid-cols-2 gap-4">
             <Champ label="Prénom *" erreur={erreurDe('prenom')}>
               <input
                 type="text" value={prenom} onChange={(e) => setPrenom(e.target.value)} required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm
-                           focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className={`${CLASSE_CHAMP} ${CONTOUR}`}
               />
             </Champ>
             <Champ label="Nom *" erreur={erreurDe('nom')}>
               <input
                 type="text" value={nom} onChange={(e) => setNom(e.target.value)} required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm
-                           focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className={`${CLASSE_CHAMP} ${CONTOUR}`}
               />
             </Champ>
           </div>
@@ -489,8 +492,7 @@ function ModalUtilisateur({ utilisateur, roles, services, postes, moiMeme, onFer
           <Champ label="Adresse e-mail *" erreur={erreurDe('email')}>
             <input
               type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className={`${CLASSE_CHAMP} ${CONTOUR}`}
             />
           </Champ>
 
@@ -504,16 +506,14 @@ function ModalUtilisateur({ utilisateur, roles, services, postes, moiMeme, onFer
               onChange={(e) => setMotDePasse(e.target.value)}
               required={!estEdition}
               placeholder="8 caractères minimum"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className={`${CLASSE_CHAMP} ${CONTOUR}`}
             />
           </Champ>
 
           <Champ label="Poste" erreur={erreurDe('code_poste')}>
             <select
               value={codePoste} onChange={(e) => setCodePoste(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm bg-white
-                         focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              className={`${CLASSE_CHAMP} ${CONTOUR}`}
             >
               <option value="">— Aucun —</option>
               {postes.map((p) => (
@@ -526,8 +526,7 @@ function ModalUtilisateur({ utilisateur, roles, services, postes, moiMeme, onFer
             <Champ label="Service *" erreur={erreurDe('code_service')}>
               <select
                 value={codeService} onChange={(e) => setCodeService(e.target.value)} required
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm bg-white
-                           focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                className={`${CLASSE_CHAMP} ${CONTOUR}`}
               >
                 <option value="">— Choisir —</option>
                 {services.map((s) => (
@@ -541,9 +540,7 @@ function ModalUtilisateur({ utilisateur, roles, services, postes, moiMeme, onFer
                 value={codeRole} onChange={(e) => setCodeRole(e.target.value)} required
                 disabled={moiMeme}
                 title={moiMeme ? 'Vous ne pouvez pas changer votre propre rôle' : ''}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm bg-white
-                           focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400
-                           disabled:opacity-60 disabled:cursor-not-allowed"
+                className={`${CLASSE_CHAMP} ${CONTOUR} disabled:cursor-not-allowed disabled:opacity-60`}
               >
                 {roles.map((r) => (
                   <option key={r.code_role} value={r.code_role}>{r.libelle}</option>
@@ -553,22 +550,22 @@ function ModalUtilisateur({ utilisateur, roles, services, postes, moiMeme, onFer
           </div>
 
           {erreur && (
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
-              <AlertTriangle className="size-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-700">{erreur}</p>
+            <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-500/30 dark:bg-red-500/15">
+              <AlertTriangle className="mt-0.5 size-4 flex-shrink-0 text-red-500 dark:text-red-400" />
+              <p className="text-sm text-red-700 dark:text-red-300">{erreur}</p>
             </div>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button" onClick={onFermer} disabled={envoi}
-              className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className={`rounded-lg border px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:hover:bg-slate-100 ${CONTOUR}`}
             >
               Annuler
             </button>
             <button
               type="submit" disabled={envoi}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60"
+              className="rounded-lg bg-action-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-action-700 disabled:opacity-60"
             >
               {envoi ? '…' : estEdition ? 'Enregistrer' : 'Créer le compte'}
             </button>
@@ -582,11 +579,9 @@ function ModalUtilisateur({ utilisateur, roles, services, postes, moiMeme, onFer
 function Champ({ label, erreur, children }) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-slate-700 mb-2">{label}</label>
+      <label className="mb-2 block text-sm font-semibold text-slate-700">{label}</label>
       {children}
-      {erreur && (
-        <p className="mt-1 text-xs text-red-600">{erreur}</p>
-      )}
+      {erreur && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{erreur}</p>}
     </div>
   )
 }

@@ -9,9 +9,12 @@ import {
   ExternalLink,
   Loader2,
   Search,
+  SlidersHorizontal,
   Undo2,
   X,
+  ChevronDown,
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import { useAuth } from '../AuthContext'
 import { Avatar } from '../components/ui'
@@ -20,7 +23,7 @@ import { messageErreur } from '../utils'
 /* ============================================================
    Configuration
    ============================================================ */
-const FILTRES = [
+const FILTRES_RAPIDES = [
   { id: 'tout', libelle: 'Tout' },
   { id: 'urgent', libelle: 'Urgent' },
   { id: 'action', libelle: 'Action requise' },
@@ -32,12 +35,9 @@ const TRIS = [
   { id: 'recent', libelle: 'Plus récent' },
 ]
 
-/* Les couleurs Tailwind natives (red, amber, emerald) ne s'adaptent pas au
-   thème : on ajoute une variante dark: à chacune. indigo et slate passent par
-   les tokens du thème et s'adaptent déjà tout seuls. */
 const SECTIONS = [
   { id: 'retard', libelle: 'En retard', ton: 'text-red-700 dark:text-red-300' },
-  { id: 'aujourdhui', libelle: "Pour aujourd'hui", ton: 'text-amber-700 dark:text-amber-300' },
+  { id: 'aujourdhui', libelle: "Pour aujourd'hui", ton: 'text-mangue-500 dark:text-mangue-400' },
   { id: 'semaine', libelle: 'Cette semaine', ton: 'text-slate-700' },
   { id: 'plus_tard', libelle: 'Plus tard', ton: 'text-slate-700' },
   { id: 'sans', libelle: 'Sans échéance', ton: 'text-slate-600' },
@@ -45,9 +45,8 @@ const SECTIONS = [
 
 const DELAI_ANNULATION = 5000
 const INTERVALLE_ACTUALISATION = 15_000
-
-/* Contour des champs et boutons secondaires : un cran plus marqué en sombre */
 const CONTOUR = 'border-slate-200 dark:border-slate-300'
+const ERREUR_BLOC = 'border border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300'
 
 /* ============================================================
    Utilitaires
@@ -64,14 +63,12 @@ function formaterEcheance(iso) {
   if (!iso) return null
   const d = new Date(iso)
   const maintenant = new Date()
-
   const jour =
     d.toDateString() === maintenant.toDateString()
       ? "aujourd'hui"
       : d.toDateString() === new Date(maintenant.getTime() + 86400000).toDateString()
         ? 'demain'
         : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-
   return `${jour} à ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
 }
 
@@ -110,7 +107,6 @@ function sectionDe(a, maintenant) {
   return 'plus_tard'
 }
 
-/** Priorité : urgent d'abord, puis échéance la plus proche, puis message le plus ancien. */
 function comparerPriorite(a, b) {
   const urgentA = a.categorie === 'URGENT' ? 0 : 1
   const urgentB = b.categorie === 'URGENT' ? 0 : 1
@@ -146,12 +142,13 @@ export default function ATraiter() {
   const [enCours, setEnCours] = useState(null)
   const [maintenant, setMaintenant] = useState(() => new Date())
   const [selection, setSelection] = useState(null)
+  const [filtresOuverts, setFiltresOuverts] = useState(false)
 
-  // Actions terminées en attente de validation (annulables pendant quelques secondes)
   const [masquees, setMasquees] = useState(() => new Set())
   const [toasts, setToasts] = useState([])
   const enAttenteValidation = useRef(new Map())
   const champRecherche = useRef(null)
+  const panneauRef = useRef(null)
 
   /* ---------- Chargement ---------- */
   const charger = useCallback(async ({ silencieux = false } = {}) => {
@@ -180,7 +177,7 @@ export default function ATraiter() {
     charger()
   }, [charger])
 
-  /* ---------- Actualisation auto (15 s + retour sur l'onglet) ---------- */
+  /* ---------- Actualisation auto ---------- */
   useEffect(() => {
     const actualiser = () => {
       if (document.visibilityState === 'visible') charger({ silencieux: true })
@@ -193,7 +190,7 @@ export default function ATraiter() {
     }
   }, [charger])
 
-  // À la fermeture de la page, on valide ce qui était encore annulable
+  // Validation au démontage
   useEffect(() => {
     const file = enAttenteValidation.current
     return () => {
@@ -205,6 +202,19 @@ export default function ATraiter() {
     }
   }, [])
 
+  /* ---------- Fermeture panneau au clic extérieur ---------- */
+  useEffect(() => {
+    function surClicExterieur(e) {
+      if (panneauRef.current && !panneauRef.current.contains(e.target)) {
+        setFiltresOuverts(false)
+      }
+    }
+    if (filtresOuverts) {
+      document.addEventListener('mousedown', surClicExterieur)
+      return () => document.removeEventListener('mousedown', surClicExterieur)
+    }
+  }, [filtresOuverts])
+
   /* ---------- Données dérivées ---------- */
   const actives = useMemo(
     () => actions.filter((a) => !masquees.has(a.reference_message)),
@@ -213,7 +223,7 @@ export default function ATraiter() {
 
   const compteurs = useMemo(() => {
     const res = {}
-    for (const f of FILTRES) {
+    for (const f of FILTRES_RAPIDES) {
       res[f.id] = actives.filter((a) => correspondFiltre(a, f.id, maintenant)).length
     }
     return res
@@ -232,7 +242,6 @@ export default function ATraiter() {
       })
   }, [actives, filtre, recherche, maintenant])
 
-  // Sections (tri par échéance) ou liste plate (plus récent)
   const sections = useMemo(() => {
     if (tri === 'recent') {
       const liste = [...visibles].sort((a, b) => new Date(b.date_envoi) - new Date(a.date_envoi))
@@ -254,6 +263,9 @@ export default function ATraiter() {
   const nbRetard = compteurs.retard
   const nbUrgent = compteurs.urgent
   const nbAujourdhui = actives.filter((a) => sectionDe(a, maintenant) === 'aujourdhui').length
+
+  const nbFiltresActifs = [filtre !== 'tout'].filter(Boolean).length
+  const filtreActif = filtre !== 'tout' || recherche.trim() !== ''
 
   /* ---------- Actions ---------- */
   function retirerToast(ref) {
@@ -301,18 +313,13 @@ export default function ATraiter() {
     const termine = statut === 'FAIT' || action.categorie === 'URGENT'
 
     if (termine) {
-      // L'action disparaît tout de suite ; l'envoi réel part après 5 s, sauf si on annule
       setMasquees((m) => new Set(m).add(ref))
-      setToasts((t) => [
-        ...t,
-        { ref, texte: statut === 'FAIT' ? 'Marquée comme faite' : 'Prise en compte' },
-      ])
+      setToasts((t) => [...t, { ref, texte: statut === 'FAIT' ? 'Marquée comme faite' : 'Prise en compte' }])
       const timer = setTimeout(() => valider(ref), DELAI_ANNULATION)
       enAttenteValidation.current.set(ref, { timer, action, statut })
       return
     }
 
-    // Prise en compte d'une action non urgente : elle reste dans la liste
     const precedent = action.etat
     setEnCours(ref)
     setActions((actuelles) =>
@@ -330,7 +337,7 @@ export default function ATraiter() {
     }
   }
 
-  /* ---------- Raccourcis clavier : J/K, P, F, Entrée, / ---------- */
+  /* ---------- Raccourcis clavier ---------- */
   const accuserRef = useRef(accuser)
   accuserRef.current = accuser
 
@@ -372,234 +379,296 @@ export default function ATraiter() {
     return () => document.removeEventListener('keydown', surTouche)
   }, [ordonnees, selection, navigate])
 
-  // Fait défiler jusqu'à la carte sélectionnée
   useEffect(() => {
     if (selection) {
-      document
-        .getElementById(`action-${selection}`)
-        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      document.getElementById(`action-${selection}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }
   }, [selection])
 
-  const filtreActif = filtre !== 'tout' || recherche.trim() !== ''
-
   /* ---------- Rendu ---------- */
   return (
-    <div className="w-full pb-24">
+    <div className="flex h-full flex-col bg-slate-50">
+      
+      {/* ===== En-tête (Filtres) ===== */}
+      <div className="sticky top-0 z-10 border-b border-slate-200 bg-papier/95 px-6 py-4 backdrop-blur md:px-8">
+        <div className="mx-auto max-w-[1600px]">
+          
+          <div className="flex flex-wrap items-center gap-3">
+            
+            {/* Recherche */}
+            <div className="relative w-full sm:w-80">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={champRecherche}
+                type="search"
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setRecherche('')
+                    e.currentTarget.blur()
+                  }
+                }}
+                placeholder="Rechercher un expéditeur, un sujet… (Ctrl+K)"
+                aria-label="Rechercher dans les actions"
+                className={`w-full rounded-lg border ${CONTOUR} bg-papier py-2 pl-9 pr-9 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15`}
+              />
+              {recherche && (
+                <button
+                  type="button"
+                  onClick={() => setRecherche('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                  aria-label="Effacer la recherche"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
 
-      {/* En-tête avec les compteurs : caché s'il n'y a rien à afficher */}
-      {(nbRetard > 0 || nbUrgent > 0 || nbAujourdhui > 0) && (
-        <header className="flex flex-wrap items-end justify-between gap-3 px-4 pt-4 md:px-6">
-          <div className="flex flex-wrap gap-2">
-            {nbRetard > 0 && (
-              <button
-                type="button"
-                onClick={() => setFiltre('retard')}
-                className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-200 focus-visible:outline-2 focus-visible:outline-red-600 dark:bg-red-400/15 dark:text-red-300 dark:hover:bg-red-400/25"
-              >
-                {pluriel(nbRetard, 'en retard', 'en retard')}
-              </button>
-            )}
-            {nbUrgent > 0 && (
-              <button
-                type="button"
-                onClick={() => setFiltre('urgent')}
-                className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-200 focus-visible:outline-2 focus-visible:outline-amber-600 dark:bg-amber-400/15 dark:text-amber-300 dark:hover:bg-amber-400/25"
-              >
-                {pluriel(nbUrgent, 'urgent')}
-              </button>
-            )}
-            {nbAujourdhui > 0 && (
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                {pluriel(nbAujourdhui, 'échéance')} aujourd’hui
-              </span>
-            )}
-          </div>
-        </header>
-      )}
+            {/* Filtres rapides */}
+            <div className="flex items-center gap-1.5">
+              {FILTRES_RAPIDES.map((f) => {
+                const actif = filtre === f.id
+                const compte = compteurs[f.id]
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setFiltre(f.id)}
+                    aria-pressed={actif}
+                    className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                      actif
+                        ? 'border-action-600 bg-action-600 text-white'
+                        : `${CONTOUR} bg-papier text-slate-700 hover:border-slate-300 hover:bg-slate-50`
+                    }`}
+                  >
+                    {f.libelle}
+                    {compte > 0 && (
+                      <span
+                        className={`min-w-[18px] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold leading-none ${
+                          actif ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {compte}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
 
-      {/* Barre d'outils sticky collée en haut */}
-      <div className="sticky top-0 z-10 mb-5 flex flex-wrap items-center gap-3 border-b border-slate-200 bg-papier/95 px-4 py-3 backdrop-blur md:px-6">
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrer les actions">
-          {FILTRES.map((f) => {
-            const actif = filtre === f.id
-            const compte = compteurs[f.id]
-            return (
+            {/* Filtres avancés */}
+            <div className="relative" ref={panneauRef}>
               <button
-                key={f.id}
                 type="button"
-                onClick={() => setFiltre(f.id)}
-                aria-pressed={actif}
-                className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
-                  actif
-                    ? 'border-action-600 bg-action-600 text-white'
-                    : 'border-slate-300 bg-papier text-slate-700 hover:bg-slate-50'
+                onClick={() => setFiltresOuverts((v) => !v)}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                  nbFiltresActifs > 0 || tri !== 'echeance'
+                    ? 'border-action-600 bg-action-600/10 text-action-700 dark:bg-action-600/20 dark:text-action-300'
+                    : `${CONTOUR} bg-papier text-slate-700 hover:border-slate-300 hover:bg-slate-50`
                 }`}
+                aria-expanded={filtresOuverts}
               >
-                {f.libelle}
-                {compte > 0 && (
-                  <span className={`ml-1.5 ${actif ? 'text-white/80' : 'text-slate-500'}`}>{compte}</span>
+                <SlidersHorizontal className="size-3.5" />
+                Filtres
+                {nbFiltresActifs > 0 && (
+                  <span className="flex size-4 items-center justify-center rounded-full bg-action-600 text-[10px] font-bold text-white">
+                    {nbFiltresActifs}
+                  </span>
                 )}
+                <ChevronDown className={`size-3.5 transition-transform ${filtresOuverts ? 'rotate-180' : ''}`} />
               </button>
-            )
-          })}
-        </div>
 
-        <div className="relative min-w-52 flex-1 md:max-w-sm">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
-            aria-hidden="true"
-          />
-          <input
-            ref={champRecherche}
-            type="search"
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                setRecherche('')
-                e.currentTarget.blur()
-              }
-            }}
-            placeholder="Rechercher un expéditeur, un sujet…   ( / )"
-            aria-label="Rechercher dans les actions"
-            className={`w-full rounded-lg border ${CONTOUR} bg-papier py-2 pl-9 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-indigo-600`}
-          />
-          {recherche && (
-            <button
-              type="button"
-              onClick={() => setRecherche('')}
-              className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-              aria-label="Effacer la recherche"
-            >
-              <X className="size-3.5" aria-hidden="true" />
-            </button>
+              <AnimatePresence>
+                {filtresOuverts && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 top-full z-20 mt-2 w-80 rounded-xl border border-slate-200 bg-papier p-4 shadow-xl dark:border-slate-300"
+                  >
+                    <div>
+                      <label className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Ordre d'affichage
+                      </label>
+                      <div className="flex gap-1.5">
+                        {TRIS.map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setTri(t.id)}
+                            aria-pressed={tri === t.id}
+                            className={`flex-1 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                              tri === t.id
+                                ? 'border-action-600 bg-action-600 text-white'
+                                : `${CONTOUR} bg-papier text-slate-600 hover:bg-slate-50`
+                            }`}
+                          >
+                            {t.libelle}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => { setFiltre('tout'); setTri('echeance'); setRecherche(''); setFiltresOuverts(false) }}
+                        className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+                      >
+                        Tout effacer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFiltresOuverts(false)}
+                        className="rounded-md bg-action-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-action-700"
+                      >
+                        Appliquer
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Compteurs de statut + bouton "Réinitialiser" à droite */}
+            <div className="ml-auto flex items-center gap-2">
+              {filtreActif && (
+                <button
+                  type="button"
+                  onClick={() => { setFiltre('tout'); setRecherche('') }}
+                  className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                >
+                  <X className="size-3.5" />
+                  Effacer
+                </button>
+              )}
+              {restantes > 0 && (
+                <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">
+                  {restantes} restante{restantes > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Bandeau info échéances */}
+          {(nbRetard > 0 || nbUrgent > 0 || nbAujourdhui > 0) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {nbRetard > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFiltre('retard')}
+                  className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-200 dark:bg-red-400/15 dark:text-red-300"
+                >
+                  {pluriel(nbRetard, 'en retard', 'en retard')}
+                </button>
+              )}
+              {nbUrgent > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFiltre('urgent')}
+                  className="rounded-full bg-mangue-300/40 px-3 py-1 text-xs font-semibold text-mangue-500 hover:bg-mangue-300/60 dark:bg-mangue-400/20 dark:text-mangue-400"
+                >
+                  {pluriel(nbUrgent, 'urgent')}
+                </button>
+              )}
+              {nbAujourdhui > 0 && (
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {pluriel(nbAujourdhui, 'échéance')} aujourd'hui
+                </span>
+              )}
+            </div>
           )}
         </div>
-
-        <div
-          role="group"
-          aria-label="Ordre d'affichage"
-          className="ml-auto inline-flex rounded-xl bg-slate-100 p-1"
-        >
-          {TRIS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              aria-pressed={tri === t.id}
-              onClick={() => setTri(t.id)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-indigo-600 ${
-                tri === t.id
-                  ? 'bg-papier text-slate-900 shadow-sm dark:bg-slate-300'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {t.libelle}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Erreur */}
-      {erreur && (
-        <div
-          className="mx-4 mb-4 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-200 md:mx-6"
-          role="alert"
-        >
-          <span>{erreur}</span>
-          <button
-            type="button"
-            onClick={() => charger()}
-            className="shrink-0 font-semibold underline underline-offset-2 hover:no-underline"
-          >
-            Réessayer
-          </button>
-        </div>
-      )}
+      {/* ===== Contenu ===== */}
+      <div className="flex-1 overflow-y-auto px-6 py-6 md:px-8">
+        <div className="mx-auto max-w-[1600px]">
 
-      {/* Contenu */}
-      <div className="px-4 md:px-6">
-        {chargement ? (
-          <div
-            className="flex items-center justify-center gap-2 py-16 text-sm text-slate-600"
-            role="status"
-          >
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            Chargement…
-          </div>
-        ) : ordonnees.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-papier px-6 py-14 text-center">
-            <ClipboardCheck className="mx-auto size-10 text-emerald-500" aria-hidden="true" />
-            <p className="mt-3 text-sm font-semibold text-slate-800">
-              {filtreActif ? 'Aucune action ne correspond' : 'Tout est à jour'}
-            </p>
-            <p className="mt-1 text-xs text-slate-600">
-              {filtreActif
-                ? 'Essayez un autre filtre ou une autre recherche.'
-                : 'Aucun message ne requiert votre attention.'}
-            </p>
-            {filtreActif && (
-              <button
-                type="button"
-                onClick={() => {
-                  setFiltre('tout')
-                  setRecherche('')
-                }}
-                className={`mt-4 rounded-lg border ${CONTOUR} px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50`}
-              >
-                Effacer les filtres
+          {erreur && (
+            <div className={`mb-4 flex items-center justify-between gap-3 rounded-lg px-4 py-2.5 text-sm ${ERREUR_BLOC}`} role="alert">
+              <span>{erreur}</span>
+              <button type="button" onClick={() => charger()} className="shrink-0 font-semibold underline underline-offset-2 hover:no-underline">
+                Réessayer
               </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {sections.map((s) => (
-              <section key={s.id} aria-label={s.libelle ?? 'Actions'}>
-                {s.libelle && (
-                  <h3 className={`mb-2 flex items-center gap-2 text-sm font-semibold ${s.ton}`}>
-                    {s.libelle}
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
-                      {s.items.length}
-                    </span>
-                  </h3>
-                )}
-                <ul className="space-y-2.5">
-                  {s.items.map((a) => (
-                    <CarteAction
-                      key={a.reference_message}
-                      action={a}
-                      maintenant={maintenant}
-                      moi={utilisateur}
-                      selectionnee={selection === a.reference_message}
-                      prioritaire={premiereRef === a.reference_message}
-                      enCours={enCours === a.reference_message}
-                      onSelect={() => setSelection(a.reference_message)}
-                      onAccuser={accuser}
-                    />
-                  ))}
-                </ul>
-              </section>
-            ))}
+            </div>
+          )}
 
-            <p className="hidden text-xs text-slate-500 lg:block">
-              Raccourcis : <kbd className="rounded border border-slate-300 px-1">J</kbd> /{' '}
-              <kbd className="rounded border border-slate-300 px-1">K</kbd> naviguer,{' '}
-              <kbd className="rounded border border-slate-300 px-1">P</kbd> pris en compte,{' '}
-              <kbd className="rounded border border-slate-300 px-1">F</kbd> fait,{' '}
-              <kbd className="rounded border border-slate-300 px-1">Entrée</kbd> ouvrir,{' '}
-              <kbd className="rounded border border-slate-300 px-1">/</kbd> rechercher.
-            </p>
-          </div>
-        )}
+          {chargement ? (
+            <div className="flex h-64 items-center justify-center gap-2 text-sm text-slate-500" role="status">
+              <Loader2 className="size-5 animate-spin text-blue-600" />
+              Chargement…
+            </div>
+          ) : ordonnees.length === 0 ? (
+            <div className="flex min-h-[400px] flex-col items-center justify-center px-6 text-center">
+              <div className="flex size-16 items-center justify-center rounded-full bg-slate-200 text-slate-500">
+                <ClipboardCheck className="size-8" aria-hidden="true" />
+              </div>
+              <p className="mt-4 text-base font-semibold text-slate-800">
+                {filtreActif ? 'Aucune action ne correspond' : 'Tout est à jour'}
+              </p>
+              <p className="mt-1 max-w-sm text-sm text-slate-500">
+                {filtreActif
+                  ? 'Essayez un autre filtre ou une autre recherche.'
+                  : 'Aucun message ne requiert votre attention.'}
+              </p>
+              {filtreActif && (
+                <button
+                  type="button"
+                  onClick={() => { setFiltre('tout'); setRecherche('') }}
+                  className={`mt-4 rounded-lg border ${CONTOUR} px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50`}
+                >
+                  Effacer les filtres
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {sections.map((s) => (
+                <section key={s.id} aria-label={s.libelle ?? 'Actions'}>
+                  {s.libelle && (
+                    <h3 className={`mb-2 flex items-center gap-2 text-sm font-semibold ${s.ton}`}>
+                      {s.libelle}
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">
+                        {s.items.length}
+                      </span>
+                    </h3>
+                  )}
+                  <ul className="space-y-2.5">
+                    {s.items.map((a) => (
+                      <CarteAction
+                        key={a.reference_message}
+                        action={a}
+                        maintenant={maintenant}
+                        moi={utilisateur}
+                        selectionnee={selection === a.reference_message}
+                        prioritaire={premiereRef === a.reference_message}
+                        enCours={enCours === a.reference_message}
+                        onSelect={() => setSelection(a.reference_message)}
+                        onAccuser={accuser}
+                      />
+                    ))}
+                  </ul>
+                </section>
+              ))}
+
+              <p className="hidden text-xs text-slate-500 lg:block">
+                Raccourcis : <kbd className="rounded border border-slate-300 px-1">J</kbd> /{' '}
+                <kbd className="rounded border border-slate-300 px-1">K</kbd> naviguer,{' '}
+                <kbd className="rounded border border-slate-300 px-1">P</kbd> pris en compte,{' '}
+                <kbd className="rounded border border-slate-300 px-1">F</kbd> fait,{' '}
+                <kbd className="rounded border border-slate-300 px-1">Entrée</kbd> ouvrir,{' '}
+                <kbd className="rounded border border-slate-300 px-1">/</kbd> rechercher.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Confirmations annulables : fond fixe (identique en clair et en sombre),
-          car slate-900 devient presque blanc en mode sombre. */}
-      <div
-        className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex flex-col items-center gap-2 px-3"
-        role="status"
-        aria-live="polite"
-      >
+      {/* ===== Toasts annulables ===== */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-20 flex flex-col items-center gap-2 px-3" role="status" aria-live="polite">
         {toasts.map((t) => (
           <div
             key={t.ref}
@@ -624,15 +693,7 @@ export default function ATraiter() {
 /* ============================================================
    Carte d'une action
    ============================================================ */
-function CarteAction({
-  action: a,
-  maintenant,
-  selectionnee,
-  prioritaire,
-  enCours,
-  onSelect,
-  onAccuser,
-}) {
+function CarteAction({ action: a, maintenant, selectionnee, prioritaire, enCours, onSelect, onAccuser }) {
   const urgent = a.categorie === 'URGENT'
   const dejaPris = a.etat === 'PRIS_EN_COMPTE'
   const enRetard = estEnRetard(a, maintenant)
@@ -645,27 +706,20 @@ function CarteAction({
         libelle: 'Urgent',
       }
     : {
-        badge: 'bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300',
-        barre: 'bg-amber-400',
+        badge: 'bg-mangue-300/40 text-mangue-500 dark:bg-mangue-400/20 dark:text-mangue-400',
+        barre: 'bg-mangue-500',
         icone: ClipboardCheck,
         libelle: 'Action requise',
       }
   const Icone = styles.icone
 
-  // Échéance lisible : « En retard de 2 j », « Dans 3 h »
   let delai = null
   if (a.echeance) {
     const diff = new Date(a.echeance) - maintenant
     delai =
       diff < 0
-        ? {
-            texte: `En retard de ${dureeLisible(diff)}`,
-            ton: 'text-red-700 font-semibold dark:text-red-300',
-          }
-        : {
-            texte: `Dans ${dureeLisible(diff)}`,
-            ton: diff < 86400000 ? 'text-amber-700 font-semibold dark:text-amber-300' : 'text-slate-600',
-          }
+        ? { texte: `En retard de ${dureeLisible(diff)}`, ton: 'text-red-700 font-semibold dark:text-red-300' }
+        : { texte: `Dans ${dureeLisible(diff)}`, ton: diff < 86400000 ? 'text-mangue-500 font-semibold dark:text-mangue-400' : 'text-slate-600' }
   }
 
   return (
@@ -681,15 +735,8 @@ function CarteAction({
       <span className={`absolute inset-y-0 left-0 w-1 ${enRetard ? 'bg-red-500' : styles.barre}`} aria-hidden="true" />
 
       <div className="flex flex-col gap-4 py-4 pl-5 pr-4 lg:flex-row lg:items-center">
-        {/* Gauche : expéditeur + contenu */}
         <div className="flex min-w-0 flex-1 items-start gap-3">
-          <Avatar
-            prenom={a.expediteur?.prenom}
-            nom={a.expediteur?.nom}
-            photoUrl={a.expediteur?.photo_url}
-            taille="sm"
-          />
-
+          <Avatar prenom={a.expediteur?.prenom} nom={a.expediteur?.nom} photoUrl={a.expediteur?.photo_url} taille="sm" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               {prioritaire && (
@@ -697,32 +744,25 @@ function CarteAction({
                   À faire en premier
                 </span>
               )}
-              <span
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${styles.badge}`}
-              >
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${styles.badge}`}>
                 <Icone className="size-3" aria-hidden="true" />
                 {styles.libelle}
               </span>
               {dejaPris && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-200 dark:text-indigo-800">
                   <Check className="size-3" aria-hidden="true" />
                   Pris en compte
                 </span>
               )}
             </div>
-
             <p className="mt-1.5 text-sm text-slate-800">
-              <span className="font-semibold">
-                {a.expediteur?.prenom} {a.expediteur?.nom}
-              </span>
+              <span className="font-semibold">{a.expediteur?.prenom} {a.expediteur?.nom}</span>
               <span className="text-slate-500"> – {formaterDateRelative(a.date_envoi)}</span>
             </p>
-
             <p className="mt-1.5 line-clamp-2 text-sm text-slate-700">{a.apercu}</p>
-
             <Link
               to={`/conversations/${a.conversation.reference_conversation}`}
-              className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 focus-visible:outline-2 focus-visible:outline-indigo-600"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
             >
               {a.conversation.titre}
               <ExternalLink className="size-3" aria-hidden="true" />
@@ -730,7 +770,6 @@ function CarteAction({
           </div>
         </div>
 
-        {/* Centre : échéance */}
         {a.echeance && (
           <div className="shrink-0 text-sm lg:w-52 lg:text-right">
             <p className={`inline-flex items-center gap-1.5 ${delai.ton}`}>
@@ -741,43 +780,31 @@ function CarteAction({
           </div>
         )}
 
-        {/* Droite : actions */}
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           {dejaPris ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/30">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 ring-1 ring-blue-200 dark:bg-blue-100 dark:text-blue-800 dark:ring-blue-300">
               <Check className="size-3.5" aria-hidden="true" />
               Pris en compte
             </span>
           ) : (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onAccuser(a, 'PRIS_EN_COMPTE')
-              }}
+              onClick={(e) => { e.stopPropagation(); onAccuser(a, 'PRIS_EN_COMPTE') }}
               disabled={enCours}
-              className="inline-flex items-center gap-1.5 rounded-full bg-action-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-action-700 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              className="inline-flex items-center gap-1.5 rounded-full bg-action-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-action-700 disabled:opacity-60"
             >
-              {enCours ? (
-                <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-              ) : (
-                <Check className="size-3.5" aria-hidden="true" />
-              )}
+              {enCours ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
               Pris en compte
             </button>
           )}
-
           {!urgent && (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onAccuser(a, 'FAIT')
-              }}
+              onClick={(e) => { e.stopPropagation(); onAccuser(a, 'FAIT') }}
               disabled={enCours}
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-papier px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-papier px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-60"
             >
-              <CheckCheck className="size-3.5" aria-hidden="true" />
+              <CheckCheck className="size-3.5" />
               Marquer comme fait
             </button>
           )}
